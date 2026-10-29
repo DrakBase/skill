@@ -10,12 +10,15 @@
 | impossible de savoir quelle app contrôler | `drakbase doctor <slug>`, ou brancher le projet avec `drakbase init <slug>`. |
 | aucun Info.plist trouvé dans le projet | Ajouter un Info.plist (réglage « Info.plist File » pour un projet Xcode), ou `--plist`. **Toi**, puis `drakbase init` relancé par l'utilisateur. |
 | identifiant de bundle absent, ou différent de celui du serveur | Le `CFBundleIdentifier` (ou `identifier` de Tauri) doit être celui de l'app sur le serveur. Ne change pas celui d'une app déjà distribuée : vérifie plutôt le slug. |
-| dépendance AppsMarketKit absente, introuvable dans le code : … | `references/swift.md`. **Toi.** |
-| `… n'est pas enregistré dans src-tauri/src`, l'interface n'utilise pas encore `@appsmarket/tauri` | `references/tauri.md`, « Ce qui reste à écrire ». **Toi.** |
+| dépendance DrakBase absente, introuvable dans le code : … | `references/swift.md`. **Toi.** |
+| dépendance AppsMarketKit : le paquet s'appelle désormais DrakBase | Produit `DrakBase` (`from: "0.3.0"`) et `import DrakBase` à la place d'`AppsMarketCore` et `AppsMarketUI` (`swift.md`). **Toi.** |
+| `AppsMarketFeedURL` (ou une autre `AppsMarket…`) : ancien nom de `DrakBase…` | `drakbase init <slug>` les renomme, valeurs inchangées. **L'utilisateur**, ou toi en éditant l'Info.plist si le slug et les valeurs restent identiques. |
+| `… n'est pas enregistré dans src-tauri/src`, l'interface n'utilise pas encore `@drakbase/tauri` | `references/tauri.md`, « Ce qui reste à écrire ». **Toi.** |
+| `@appsmarket/tauri` dans `package.json`, ou l'interface l'importe encore | L'aide s'appelle désormais `@drakbase/tauri` : renommer la dépendance et les imports, puis `npm install`. **Toi.** |
 | `tauri-plugin-updater` absent ou trop ancien, paquet absent de `package.json` | `drakbase init <slug>` l'ajoute (puis `npm install`), ou monte la version à 2.14 au moins, côté crate et côté npm ensemble. |
 | permissions absentes de `capabilities/…` | Ajouter `updater:default`, `process:allow-restart`, `store:default` à la capacité de la fenêtre concernée. **Toi.** |
 | `requireSignedVersion` ou `createUpdaterArtifacts` pas activé, installation Windows à revoir | `drakbase init <slug>` les règle ; ou à la main, comme dans `references/tauri.md`. |
-| AppsMarketPublicKeys n'a pas de clé de secours | Ajouter la clé publique de secours (`~/.appsmarket/keys/<slug>.backup.key.pub`) après la principale, sans toucher à la principale. |
+| DrakBasePublicKeys n'a pas de clé de secours | Ajouter la clé publique de secours (`~/.appsmarket/keys/<slug>.backup.key.pub`) après la principale, sans toucher à la principale. |
 | clé embarquée différente de la clé principale | Les mises à jour seraient refusées. Ne remplace rien : c'est une rotation de clé (`publication.md`). Préviens l'utilisateur. |
 | la version du projet n'est pas plus haute que la dernière publiée | Monter la version avant de publier. **Toi**, avec l'accord de l'utilisateur sur le numéro. |
 | un script du projet lit `$VAR…` de travers | Le bash 3.2 de macOS colle le caractère accentué au nom : écrire `${VAR}…`. **Toi.** |
@@ -27,6 +30,7 @@
 | aucune connexion enregistrée | **L'utilisateur** : créer un jeton (« Mon compte » › « Jetons d'API »), puis `drakbase login --server https://updates.drakbase.com` dans son terminal. |
 | le jeton ne peut pas envoyer de version (`releases:write` absente) | **L'utilisateur** : nouveau jeton avec cette portée, puis `drakbase login`. |
 | le jeton ne peut pas publier (`releases:publish` absente) | Les versions resteront en brouillon : publier depuis l'administration, ou nouveau jeton. |
+| le jeton ne peut pas modifier la fiche (`listing:write` absente) | **L'utilisateur** : nouveau jeton avec ce droit, puis `drakbase login` ; ou la description et les captures déposées dans l'administration. |
 | le jeton ne sert qu'à l'app … / ne donne pas accès à l'app … | **L'utilisateur** : jeton pour cette app, ou pour toutes ses apps, puis `drakbase login`. |
 | le jeton est refusé : il a expiré ou a été révoqué | **L'utilisateur** : nouveau jeton, puis `drakbase login`. |
 | le jeton n'a pas les droits nécessaires | Sa portée, son app, ou le rôle de son propriétaire : un éditeur ne publie que pour les apps dont il est éditeur. Un superadmin l'ajoute dans l'onglet « Éditeurs » de l'app. |
@@ -72,6 +76,16 @@
 | `artifact_invalid` | Le contenu ne correspond pas : identifiant de bundle, version (`CFBundleShortVersionString`), architectures du binaire ou type de fichier. |
 | le fichier dépasse la taille maximale du serveur | 1 Gio par défaut. À voir avec l'administrateur du serveur. |
 | `conflict` | La version n'est plus un brouillon : ses fichiers ne changent plus. Version plus haute. |
+
+## Fiche publique (`drakbase listing`)
+
+| Message | Correction |
+|---|---|
+| PNG illisible, dimensions hors limites, fichier trop gros | PNG seulement, de 320 à 8192 pixels de côté, 8 Mio au plus (`sips -g pixelWidth -g pixelHeight`). Refaire la capture, ou la réduire : `sips -Z 2560 capture.png`. |
+| plus de 10 captures | Garder les plus parlantes. |
+| légende ou description trop longue | 200 caractères par légende, 4000 pour la description. |
+| capture vide, ou seulement le fond d'écran | Le terminal n'a pas l'autorisation « Enregistrement de l'écran » : **l'utilisateur** l'accorde dans Réglages Système › Confidentialité et sécurité, puis relance le terminal. |
+| la page publique ne montre pas l'app | Elle n'est pas visible (« Visible sur la page publique », onglet « Informations »), ou n'a pas encore de version stable publiée. |
 
 ## Côté app
 

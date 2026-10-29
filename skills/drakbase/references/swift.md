@@ -1,10 +1,10 @@
-# App Swift (macOS) : AppsMarketKit
+# App Swift (macOS) : le paquet DrakBase
 
 ## Conditions
 
 - macOS 14 ou plus, outils Swift 6.2 ou plus.
 - **App hors sandbox.** Pour une app sandboxée, l'installation passera par un service XPC qui n'est pas encore livré : l'updater s'y dirait « indisponible ». Préviens l'utilisateur avant d'intégrer.
-- Un **certificat de signature de code** dans le trousseau (`security find-identity -v -p codesigning`). Un certificat auto-signé suffit, mais toutes les versions doivent être signées par le même : l'app n'installe que des versions qui satisfont son exigence désignée. Changer de certificat demande une version de transition qui déclare le nouveau dans `AppsMarketTrustedRequirements`.
+- Un **certificat de signature de code** dans le trousseau (`security find-identity -v -p codesigning`). Un certificat auto-signé suffit, mais toutes les versions doivent être signées par le même : l'app n'installe que des versions qui satisfont son exigence désignée. Changer de certificat demande une version de transition qui déclare le nouveau dans `DrakBaseTrustedRequirements`.
 - L'app tourne depuis un dossier où l'utilisateur peut écrire, `/Applications` en général. Lancée depuis un DMG ou le dossier Téléchargements (App Translocation), elle se dit indisponible et demande d'être déplacée.
 
 ## Ce que `drakbase init` écrit
@@ -13,11 +13,12 @@ Dans l'Info.plist du projet, et nulle part ailleurs :
 
 | Clé | Contenu |
 |---|---|
-| `AppsMarketFeedURL` | `https://updates.drakbase.com/api/v1/update/<slug>` |
-| `AppsMarketPublicKeys` | la clé publique principale, puis la clé de secours, au format Tauri |
+| `DrakBaseFeedURL` | `https://updates.drakbase.com/api/v1/update/<slug>` |
+| `DrakBasePublicKeys` | la clé publique principale, puis la clé de secours, au format Tauri |
 
 - Il lui faut un vrai fichier Info.plist. Un projet Xcode dont l'Info.plist est entièrement généré en reçoit un : crée un petit `Info.plist` avec ces clés, et renseigne-le dans le réglage « Info.plist File » (`INFOPLIST_FILE`) de la cible ; Xcode le fusionne avec les clés générées. Puis relance `drakbase init <slug>`, avec `--plist <fichier>` si le projet en a plusieurs.
 - Il ne remplace jamais des clés déjà présentes. Ne les modifie pas à la main.
+- Jusqu'à la 0.2, ces clés s'appelaient `AppsMarketFeedURL`, `AppsMarketPublicKeys`, `AppsMarketTrustedRequirements` et `AppsMarketInstallerService`. Le paquet les lit encore quand la nouvelle clé manque ; `drakbase init <slug>` les renomme, sans changer leur valeur. Un script qui les lit (par exemple avec PlistBuddy) passe aux nouveaux noms en même temps.
 - `CFBundleIdentifier` doit rester celui de l'app déclarée sur le serveur : le serveur refuse une archive dont l'identifiant diffère.
 
 ## La dépendance
@@ -26,18 +27,20 @@ Dans l'Info.plist du projet, et nulle part ailleurs :
 
 ```swift
 dependencies: [
-    .package(url: "git@github.com:kcampion/drakbase-apps-market.git", from: "0.2.0"),
+    .package(url: "git@github.com:kcampion/drakbase-apps-market.git", from: "0.3.0"),
 ],
 targets: [
     .executableTarget(name: "MonApp", dependencies: [
-        .product(name: "AppsMarketKit", package: "drakbase-apps-market"),
+        .product(name: "DrakBase", package: "drakbase-apps-market"),
     ]),
 ]
 ```
 
-Projet Xcode : File › Add Package Dependencies…, adresse `git@github.com:kcampion/drakbase-apps-market.git`, à partir de la version 0.2.0, produit `AppsMarketKit`. Xcode passe par la configuration SSH du Mac.
+Projet Xcode : File › Add Package Dependencies…, adresse `git@github.com:kcampion/drakbase-apps-market.git`, à partir de la version 0.3.0, produit `DrakBase`. Xcode passe par la configuration SSH du Mac.
 
-Le produit réunit trois modules ; l'app importe `AppsMarketCore` et `AppsMarketUI`. Il est lié statiquement et n'a aucune dépendance.
+L'app n'importe qu'un module, `DrakBase` : il donne l'updater, son interface et la vérification des signatures. Le paquet est lié statiquement et n'a aucune dépendance.
+
+Une app d'avant la 0.3 dépend du produit `AppsMarketKit` et importe `AppsMarketCore` et `AppsMarketUI` : remplace le produit par `DrakBase` (en montant `from:` à 0.3.0) et ces imports par `import DrakBase`.
 
 ## Le code
 
@@ -46,7 +49,7 @@ Le produit réunit trois modules ; l'app importe `AppsMarketCore` et `AppsMarket
 La nouvelle instance lancée par une mise à jour doit attendre que l'ancienne soit fermée, **avant toute autre chose** (ouverture d'une base, `App.init`). Retire `@main` de la structure `App`, et ajoute dans un fichier qui ne s'appelle pas `main.swift` :
 
 ```swift
-import AppsMarketCore
+import DrakBase
 
 @main
 @MainActor
@@ -65,8 +68,7 @@ App AppKit sans SwiftUI : appelle `RelaunchGate.waitForPreviousInstance()` en t�
 Un seul par app, créé après le gate :
 
 ```swift
-import AppsMarketCore
-import AppsMarketUI
+import DrakBase
 import SwiftUI
 
 struct MonApp: App {
@@ -154,8 +156,8 @@ command -v drakbase >/dev/null || die "drakbase introuvable"
 APP="dist/MonApp.app"
 
 # Sans ses clés publiques, cette version ne pourrait plus jamais vérifier une mise à jour.
-KEYS="$(/usr/libexec/PlistBuddy -c "Print :AppsMarketPublicKeys" "$APP/Contents/Info.plist" 2>/dev/null | grep -c '^ ' || true)"
-[ "$KEYS" -ge 2 ] || die "l'Info.plist construit n'a pas les deux clés publiques (AppsMarketPublicKeys)"
+KEYS="$(/usr/libexec/PlistBuddy -c "Print :DrakBasePublicKeys" "$APP/Contents/Info.plist" 2>/dev/null | grep -c '^ ' || true)"
+[ "$KEYS" -ge 2 ] || die "l'Info.plist construit n'a pas les deux clés publiques (DrakBasePublicKeys)"
 
 drakbase release "$APP" --app monapp --channel "$CHANNEL" ${ARGS[@]+"${ARGS[@]}"}
 ```

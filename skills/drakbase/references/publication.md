@@ -5,7 +5,8 @@
 - `drakbase doctor <slug>` : aucun `✗`, et la ligne de version du projet plus haute que la dernière publiée.
 - La version est canonique et plus haute que la dernière du canal : `1.2.0`, `1.2.1`, `1.3.0-beta.1`. `1.2` est publiée comme `1.2.0`, et les métadonnées `+…` sont refusées.
 - Les notes sont prêtes, en Markdown (voir plus bas).
-- Le jeton a les droits nécessaires : `releases:write` pour créer et remplir un brouillon, `releases:publish` en plus pour publier.
+- Le jeton a les droits nécessaires : `releases:write` pour créer et remplir un brouillon, `releases:publish` en plus pour publier, et `listing:write` pour la fiche publique.
+- À la première publication : la description et les captures d'écran sont prêtes (`fiche.md`).
 
 ## `drakbase release` (app Swift, ou tout bundle macOS signé)
 
@@ -27,7 +28,7 @@ drakbase publish --app <slug> --version <version> --channel stable|beta [--notes
 
 - Chaque artefact est un fichier, dont l'emplacement se déduit du nom (`.app.tar.gz`, `.dmg`, `.AppImage`, `.deb`, `.rpm`, `-setup.exe`, `.msi`), ou `<os>/<arch>/<type>=<fichier>` : `darwin/universal/app=…`, `darwin/aarch64/dmg=…`, `linux/x86_64/appimage=…`, `windows/x86_64/nsis=…`.
 - La signature `<fichier>.sig` est lue à côté de chaque fichier, sauf pour un DMG. L'outil la vérifie avec la clé de l'app, et contrôle que la version signée est bien celle annoncée.
-- Il déclare les clés que la version embarque, lues dans `tauri.conf.json` (ou l'Info.plist pour une app Swift) : lance-le depuis le dossier du projet, ou donne `--tauri-config`. Sans configuration trouvée, il refuse `--publish`.
+- Il déclare les clés que la version embarque, lues dans `tauri.conf.json` (ou `DrakBasePublicKeys` dans l'Info.plist pour une app Swift) : lance-le depuis le dossier du projet, ou donne `--tauri-config`. Sans configuration trouvée, il refuse `--publish`.
 - Mêmes options `--publish`, `--force` et `--prune` que `release`.
 
 ## Brouillons et reprise
@@ -63,4 +64,4 @@ Dans l'administration, page de la version : « Retirer ». Elle n'est plus propo
 
 ## Page publique
 
-La page publique (`https://updates.drakbase.com/`, éventuellement protégée par un mot de passe) montre les apps listées, leur dernière version stable, les installeurs par système (le DMG pour macOS) et l'historique des notes. La description, l'icône et la visibilité d'une app se règlent dans l'administration, onglet « Informations ».
+La page publique (`https://updates.drakbase.com/`, éventuellement protégée par un mot de passe) montre les apps listées, leur dernière version stable, les installeurs par système (le DMG pour macOS), la description, les captures d'écran et l'historique des notes. La description et les captures se règlent avec `drakbase listing` (`fiche.md`) ou dans l'administration ; l'icône et la visibilité, dans l'administration seulement, onglet « Informations ».

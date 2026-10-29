@@ -1,6 +1,6 @@
 {
-  "name": "drakbase-apps-market",
-  "description": "Place de marché Claude Code de Drakbase : la skill qui guide l'intégration des mises à jour Drakbase dans une app Swift ou Tauri, et la publication de ses versions.",
+  "name": "drakbase",
+  "description": "Place de marché Claude Code de DrakBase : la skill qui guide l'intégration des mises à jour DrakBase dans une app Swift ou Tauri, la publication de ses versions et sa fiche publique.",
   "owner": {
     "name": "DrakBase"
   },
@@ -8,7 +8,7 @@
     {
       "name": "drakbase",
       "source": "./",
-      "description": "Skill qui guide l'intégration des mises à jour Drakbase dans une app Swift ou Tauri, et la publication de ses versions avec l'outil drakbase."
+      "description": "Skill qui guide l'intégration des mises à jour DrakBase dans une app Swift ou Tauri, la publication de ses versions avec l'outil drakbase, et sa fiche publique."
     }
   ]
 }

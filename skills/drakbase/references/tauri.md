@@ -1,6 +1,6 @@
-# App Tauri 2 : tauri-plugin-updater et @appsmarket/tauri
+# App Tauri 2 : tauri-plugin-updater et @drakbase/tauri
 
-L'app utilise le plugin officiel `tauri-plugin-updater`, qui interroge le serveur, télécharge l'archive, en vérifie la signature avec la clé publique embarquée, l'installe, puis l'app se relance. L'aide `@appsmarket/tauri` ajoute le canal (stable ou bêta) et l'identifiant d'installation anonyme, et range ces réglages.
+L'app utilise le plugin officiel `tauri-plugin-updater`, qui interroge le serveur, télécharge l'archive, en vérifie la signature avec la clé publique embarquée, l'installe, puis l'app se relance. L'aide `@drakbase/tauri` ajoute le canal (stable ou bêta) et l'identifiant d'installation anonyme, et range ces réglages.
 
 ## Versions
 
@@ -43,7 +43,7 @@ L'app utilise le plugin officiel `tauri-plugin-updater`, qui interroge le serveu
 - `bundle.targets` : la même liste convient aux trois systèmes, par exemple `["app", "dmg", "nsis", "appimage"]`. Le DMG sert à la première installation, jamais aux mises à jour. Évite MSI : il s'installe pour toute la machine et demande l'UAC à chaque mise à jour.
 - **`src-tauri/capabilities/default.json`** : `updater:default`, `process:allow-restart` et `store:default`, pour la fenêtre qui gère les mises à jour. Si l'app a d'autres fichiers de capacités, la fenêtre concernée doit avoir ces trois permissions.
 - **`src-tauri/Cargo.toml`** : `tauri-plugin-updater`, `tauri-plugin-process` et `tauri-plugin-store`.
-- **`package.json`** : `@appsmarket/tauri` (depuis le dépôt privé, `git+ssh://git@github.com/kcampion/drakbase-apps-market.git#semver:^0.2.0`) et les trois paquets `@tauri-apps/plugin-…`. Lance ensuite `npm install`.
+- **`package.json`** : `@drakbase/tauri` (depuis le dépôt privé, `git+ssh://git@github.com/kcampion/drakbase-apps-market.git#semver:^0.3.0`) et les trois paquets `@tauri-apps/plugin-…`. Lance ensuite `npm install`. Jusqu'à la 0.2, l'aide s'appelait `@appsmarket/tauri` : une app qui l'utilise encore change le nom de la dépendance et de ses imports, puis lance `npm install`.
 
 ## Ce qui reste à écrire
 
@@ -79,7 +79,7 @@ Si l'app empêche sa fermeture (`api.prevent_exit()` sur `RunEvent::ExitRequeste
 ### L'interface, avec React
 
 ```tsx
-import { useUpdater } from "@appsmarket/tauri/react";
+import { useUpdater } from "@drakbase/tauri/react";
 
 function Updates() {
   const updater = useUpdater(); // cherche une mise à jour au montage
@@ -132,7 +132,7 @@ function Updates() {
 ### Sans React
 
 ```ts
-import { checkForUpdate, installUpdate } from "@appsmarket/tauri";
+import { checkForUpdate, installUpdate } from "@drakbase/tauri";
 
 const update = await checkForUpdate();
 if (update) {
