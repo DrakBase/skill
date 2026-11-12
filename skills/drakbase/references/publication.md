@@ -29,7 +29,18 @@ drakbase publish --app <slug> --version <version> --channel stable|beta [--notes
 - Chaque artefact est un fichier, dont l'emplacement se déduit du nom (`.app.tar.gz`, `.dmg`, `.AppImage`, `.deb`, `.rpm`, `-setup.exe`, `.msi`), ou `<os>/<arch>/<type>=<fichier>` : `darwin/universal/app=…`, `darwin/aarch64/dmg=…`, `linux/x86_64/appimage=…`, `windows/x86_64/nsis=…`.
 - La signature `<fichier>.sig` est lue à côté de chaque fichier, sauf pour un DMG. L'outil la vérifie avec la clé de l'app, et contrôle que la version signée est bien celle annoncée.
 - Il déclare les clés que la version embarque, lues dans `tauri.conf.json` (ou `DrakBasePublicKeys` dans l'Info.plist pour une app Swift) : lance-le depuis le dossier du projet, ou donne `--tauri-config`. Sans configuration trouvée, il refuse `--publish`.
+- Il envoie aussi les archives d'une stack (`.stack.tar.gz`, dont il lit les clés dans `stack.json`) et les exécutables d'une app cli (reconnus à leur en-tête ELF, ou `linux/<arch>/bin=<fichier>` ; leurs clés viennent de `drakbase.json`, ou de `--drakbase-json <chemin>`). Voir `stack.md`.
 - Mêmes options `--publish`, `--force` et `--prune` que `release`.
+
+## `drakbase release --stack` (stack Docker)
+
+```bash
+drakbase release --app <slug> --stack [<dossier>] --version <version> --channel stable|beta [--notes notes.md] [--publish]
+```
+
+- Il construit les images de la stack, les envoie, et publie une archive signée par arch. La version se donne avec `--version` ; le dossier vaut `stack` par défaut. Le détail est dans `stack.md`.
+- `-o <dossier>` : où écrire les archives et leurs signatures (par défaut, `dist/` à côté du dossier de la stack).
+- Un brouillon se publie ensuite avec la commande `drakbase publish … --publish` qu'il affiche, sans rien reconstruire.
 
 ## Brouillons et reprise
 

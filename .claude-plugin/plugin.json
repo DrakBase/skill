@@ -1,6 +1,6 @@
 {
   "name": "drakbase",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Skill qui guide l'intégration des mises à jour DrakBase (https://updates.drakbase.com) dans une app Swift ou Tauri, la publication de ses versions avec l'outil drakbase, et sa fiche publique.",
   "author": {
     "name": "Kevin Campion"

@@ -6,12 +6,12 @@
 
 | Message | Correction |
 |---|---|
-| aucun projet d'app dans le dossier courant | Lancer à la racine du projet, ou `--tauri-config <chemin>`. **Toi.** |
+| aucun projet d'app dans le dossier courant | Lancer à la racine du projet, ou `--tauri-config <chemin>`, `--stack <dossier>` (stack Docker) ou `--cli` (exécutable Linux). **Toi.** |
 | impossible de savoir quelle app contrôler | `drakbase doctor <slug>`, ou brancher le projet avec `drakbase init <slug>`. |
 | aucun Info.plist trouvé dans le projet | Ajouter un Info.plist (réglage « Info.plist File » pour un projet Xcode), ou `--plist`. **Toi**, puis `drakbase init` relancé par l'utilisateur. |
 | identifiant de bundle absent, ou différent de celui du serveur | Le `CFBundleIdentifier` (ou `identifier` de Tauri) doit être celui de l'app sur le serveur. Ne change pas celui d'une app déjà distribuée : vérifie plutôt le slug. |
 | dépendance DrakBase absente, introuvable dans le code : … | `references/swift.md`. **Toi.** |
-| dépendance AppsMarketKit : le paquet s'appelle désormais DrakBase | Produit `DrakBase` (`from: "0.3.0"`) et `import DrakBase` à la place d'`AppsMarketCore` et `AppsMarketUI` (`swift.md`). **Toi.** |
+| dépendance AppsMarketKit : le paquet s'appelle désormais DrakBase | Produit `DrakBase` (`from: "0.4.0"`) et `import DrakBase` à la place d'`AppsMarketCore` et `AppsMarketUI` (`swift.md`). **Toi.** |
 | `AppsMarketFeedURL` (ou une autre `AppsMarket…`) : ancien nom de `DrakBase…` | `drakbase init <slug>` les renomme, valeurs inchangées. **L'utilisateur**, ou toi en éditant l'Info.plist si le slug et les valeurs restent identiques. |
 | `… n'est pas enregistré dans src-tauri/src`, l'interface n'utilise pas encore `@drakbase/tauri` | `references/tauri.md`, « Ce qui reste à écrire ». **Toi.** |
 | `@appsmarket/tauri` dans `package.json`, ou l'interface l'importe encore | L'aide s'appelle désormais `@drakbase/tauri` : renommer la dépendance et les imports, puis `npm install`. **Toi.** |
@@ -42,6 +42,8 @@
 | Message | Correction |
 |---|---|
 | l'app … n'existe pas sur le serveur, la clé principale n'est pas déclarée | **L'utilisateur** relance `drakbase init <slug>` ; la page `/admin/add-app#…` qu'il ouvre est réservée aux superadmins. Un éditeur en transmet l'adresse à un superadmin. |
+| `init` reste sur « En attente de l'administration… » alors que la page dit l'app prête | Le compte du jeton n'est pas éditeur de l'app : il ne la voit pas. **L'utilisateur** l'ajoute dans l'onglet Éditeurs de l'app. Un outil 0.4 ou plus le fait proposer par la page, dans le même clic. |
+| le jeton de l'outil est limité à l'app … : il ne verra pas … | **L'utilisateur** crée un jeton pour toutes ses apps, puis relance `drakbase login`. |
 | l'app a déjà une autre clé active sur le serveur | Le projet embarque une autre clé que celle du serveur : mauvais slug, ou clés d'un autre Mac (`drakbase restore <slug>`). Sinon, rotation de clé : à voir avec un superadmin. |
 | l'app est de type swift sur le serveur, et le projet est une app tauri (ou l'inverse) | Mauvais slug : vérifie l'identifiant de l'app. |
 | clé déclarée comme suivante, pas encore active | Normal pendant une rotation : la passer active dans l'onglet « Clés » une fois la version de transition publiée. |
@@ -86,6 +88,33 @@
 | légende ou description trop longue | 200 caractères par légende, 4000 pour la description. |
 | capture vide, ou seulement le fond d'écran | Le terminal n'a pas l'autorisation « Enregistrement de l'écran » : **l'utilisateur** l'accorde dans Réglages Système › Confidentialité et sécurité, puis relance le terminal. |
 | la page publique ne montre pas l'app | Elle n'est pas visible (« Visible sur la page publique », onglet « Informations »), ou n'a pas encore de version stable publiée. |
+
+## Stacks Docker et apps cli
+
+Les règles sont dans `references/stack.md`. Chaque règle enfreinte se termine par son code, entre parenthèses.
+
+| Message | Correction |
+|---|---|
+| `docker … introuvable`, `docker buildx indisponible`, `docker compose indisponible`, Docker ne répond pas | **L'utilisateur** installe ou démarre Docker (Docker Desktop, OrbStack), avec buildx et Docker Compose. |
+| `docker buildx build a échoué` | Lire la sortie de buildx au-dessus. Si le constructeur ne produit pas d'images OCI multi-plateformes : stockage d'images containerd de Docker Desktop, ou `docker buildx create --use --driver docker-container`. |
+| `Docker Compose ne lit pas …/compose.yaml : …` | Le message de Docker Compose suit : corriger le compose. Une variable obligatoire (`${VAR:?…}`) manque dans `.env.example`. |
+| `compose.yaml introuvable`, `renomme docker-compose.yml en compose.yaml` | Le dossier de la stack contient `compose.yaml`, sous ce nom exactement. **Toi.** |
+| `stack.json : …` (`field_tool_only`, `field_unknown`, `public_keys_count`…) | `app`, `version` et `images` sont remplis par l'outil, pas à la main ; les champs permis sont dans `stack.md`. **Toi**, sans jamais toucher à `public_keys`. |
+| impossible de savoir quelle app contrôler (stack) | `drakbase doctor <slug>` : `stack.json` ne dit pas le slug. |
+| aucun service du compose ne se construit sur place | Une stack publie au moins une image : un service avec `build:`. |
+| `« … » ne peut pas nommer une image` | Donner au service construit une `image:` en minuscules (`image: mon-app:dev`). **Toi.** |
+| deux images différentes sous le même nom | Deux services construisent différemment avec la même `image:` : la même section `build`, ou des noms distincts. |
+| `build.… n'est pas pris en charge` | Retirer ce champ (`secrets`, `ssh`…) du `build:`, ou construire l'image autrement. |
+| le montage `${…}:/…` prend une variable pour source | L'écrire en syntaxe longue avec `type: bind` (`stack.md`). **Toi.** |
+| `(bind_outside_files)`, `(bind_not_read_only)` | Un fichier du dossier de la stack se monte depuis `files/`, en lecture seule (`:ro`) ; les données vont dans un volume nommé. **Toi.** |
+| `(service_missing)`, `(pre_update_missing)`, `(profile_unexpected)`, `(pre_update_profile)` | `service` et `pre_update` de `stack.json` désignent des services du compose ; seul `pre_update` a un profil, exactement `drakbase-hooks`. **Toi.** |
+| `(image_not_pinned)` | Une image d'un autre registre s'épingle par empreinte : `redis:7@sha256:…` (`docker buildx imagetools inspect redis:7` la donne). **Toi.** |
+| container_name est déconseillé | Retirer `container_name` : un nom fixe peut entrer en conflit avec un conteneur existant de la machine. |
+| buildx n'a pas produit la plateforme … | Le constructeur ne sait pas construire pour cette plateforme (émulation absente) : la retirer de `platforms`, ou installer l'émulation. |
+| l'app … est une app Swift sur le serveur, pas une stack Docker | Mauvais slug, ou app créée avec un autre type : vérifie l'identifiant. |
+| `requête refusée : seule une app de type stack reçoit des images` | L'app du serveur n'est pas de type `stack`. |
+| `n'est pas un exécutable Linux (ELF)`, `l'exécutable est fait pour …` | Un artefact `bin` est un exécutable Linux de l'arch annoncée : vérifier la cible de compilation. |
+| `… est une app cli, et le dossier courant n'a pas de drakbase.json` | Lancer `publish` depuis le dossier du projet, ou donner `--drakbase-json <chemin>`. |
 
 ## Côté app
 

@@ -1,10 +1,11 @@
 # Skill Claude « drakbase »
 
-Plugin [Claude Code](https://claude.com/claude-code) pour les développeurs qui publient leurs apps sur **DrakBase** (`https://updates.drakbase.com`), un serveur de mises à jour pour les apps macOS en Swift et les apps Tauri 2 (macOS, Linux, Windows).
+Plugin [Claude Code](https://claude.com/claude-code) pour les développeurs qui publient leurs apps sur **DrakBase** (`https://updates.drakbase.com`), un serveur de mises à jour pour les apps macOS en Swift, les apps Tauri 2 (macOS, Linux, Windows), les stacks Docker et les exécutables Linux.
 
 La skill `drakbase` guide Claude pour :
 
 - **brancher les mises à jour** dans une app : le paquet `DrakBase` pour une app Swift, le plugin officiel `tauri-plugin-updater` et l'aide `@drakbase/tauri` pour une app Tauri ;
+- **publier une stack Docker** (un compose et ses images) pour une machine Linux, que l'agent `drakbase-stack` installe et met à jour seul, ou un exécutable Linux ;
 - **publier une version**, stable ou bêta, avec l'outil `drakbase` : construction, signature, brouillon, notes de version ;
 - **préparer la fiche publique** de l'app à sa première publication : une description et des captures d'écran, envoyées avec `drakbase listing` ;
 - **dépanner** : les contrôles de `drakbase doctor` et les messages de l'outil, avec leur correction.
@@ -28,6 +29,7 @@ Dans le dossier de l'app, ouvrir Claude Code et demander par exemple :
 
 - « Branche les mises à jour DrakBase dans cette app »
 - « Publie la version 1.2.0 en bêta »
+- « Prépare le dossier stack/ de ce projet et publie-le pour un Raspberry Pi »
 - « Prépare la description et les captures d'écran de l'app »
 - « drakbase doctor signale un problème, aide-moi »
 
@@ -36,7 +38,7 @@ La skill se déclenche d'elle-même ; `/drakbase:drakbase` l'appelle directement
 ## Ce qu'il faut pour s'en servir
 
 - un compte sur l'administration du serveur DrakBase (éditeur ou superadmin), et un jeton d'API créé dans « Mon compte » ;
-- un Mac, avec KeePassXC pour la sauvegarde des clés, et, pour une app macOS, un certificat de signature de code ;
+- un Mac, avec KeePassXC pour la sauvegarde des clés, et, pour une app macOS, un certificat de signature de code ; pour une stack, Docker avec buildx et Docker Compose ;
 - l'outil `drakbase`, le paquet Swift `DrakBase` et `@drakbase/tauri` viennent d'un dépôt privé : il faut une clé SSH qui y a accès. La skill explique leur installation.
 
 ## Mises à jour
@@ -55,7 +57,7 @@ ou activer la mise à jour automatique dans `/plugin`, onglet « Marketplaces »
 .claude-plugin/marketplace.json   la place de marché, dont ce dépôt est aussi le seul plugin
 .claude-plugin/plugin.json        le plugin, à la version de l'outil
 skills/drakbase/SKILL.md          la skill : règles, parcours (brancher, publier, dépanner)
-skills/drakbase/references/       fiches lues à la demande : swift.md, tauri.md, publication.md, fiche.md, depannage.md
+skills/drakbase/references/       fiches lues à la demande : swift.md, tauri.md, stack.md, publication.md, fiche.md, depannage.md
 ```
 
 Ce dépôt est une copie publiée : ses sources sont maintenues avec l'outil, et chaque publication remplace son contenu.

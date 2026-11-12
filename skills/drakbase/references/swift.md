@@ -27,7 +27,7 @@ Dans l'Info.plist du projet, et nulle part ailleurs :
 
 ```swift
 dependencies: [
-    .package(url: "git@github.com:kcampion/drakbase-apps-market.git", from: "0.3.0"),
+    .package(url: "git@github.com:kcampion/drakbase-apps-market.git", from: "0.4.0"),
 ],
 targets: [
     .executableTarget(name: "MonApp", dependencies: [
@@ -36,11 +36,11 @@ targets: [
 ]
 ```
 
-Projet Xcode : File › Add Package Dependencies…, adresse `git@github.com:kcampion/drakbase-apps-market.git`, à partir de la version 0.3.0, produit `DrakBase`. Xcode passe par la configuration SSH du Mac.
+Projet Xcode : File › Add Package Dependencies…, adresse `git@github.com:kcampion/drakbase-apps-market.git`, à partir de la version 0.4.0, produit `DrakBase`. Xcode passe par la configuration SSH du Mac.
 
 L'app n'importe qu'un module, `DrakBase` : il donne l'updater, son interface et la vérification des signatures. Le paquet est lié statiquement et n'a aucune dépendance.
 
-Une app d'avant la 0.3 dépend du produit `AppsMarketKit` et importe `AppsMarketCore` et `AppsMarketUI` : remplace le produit par `DrakBase` (en montant `from:` à 0.3.0) et ces imports par `import DrakBase`.
+Une app d'avant la 0.3 dépend du produit `AppsMarketKit` et importe `AppsMarketCore` et `AppsMarketUI` : remplace le produit par `DrakBase` (en montant `from:` à 0.4.0) et ces imports par `import DrakBase`.
 
 ## Le code
 

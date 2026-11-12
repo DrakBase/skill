@@ -1,6 +1,6 @@
 ---
 name: drakbase
-description: Branche les mises à jour automatiques de DrakBase (https://updates.drakbase.com) dans une app macOS en Swift ou une app Tauri 2, publie ses versions avec l'outil drakbase, et prépare sa fiche publique (description et captures d'écran). À utiliser dès que l'utilisateur veut intégrer DrakBase à son app, ajouter le paquet Swift DrakBase, @drakbase/tauri ou tauri-plugin-updater pour ce serveur, lancer drakbase init, doctor, release, publish, exec ou listing, publier une version stable ou bêta, écrire des notes de version, rédiger la description ou prendre les captures d'écran de l'app, retirer une version, ou comprendre un message de l'outil drakbase.
+description: Branche les mises à jour automatiques de DrakBase (https://updates.drakbase.com) dans une app macOS en Swift, une app Tauri 2, une stack Docker (compose, pour une machine Linux) ou un exécutable Linux (app cli), publie ses versions avec l'outil drakbase, et prépare sa fiche publique (description et captures d'écran). À utiliser dès que l'utilisateur veut intégrer DrakBase à son app ou à sa stack, ajouter le paquet Swift DrakBase, @drakbase/tauri ou tauri-plugin-updater pour ce serveur, préparer un dossier stack/ (compose.yaml, stack.json), lancer drakbase init, doctor, release (y compris release --stack), publish, exec ou listing, publier une version stable ou bêta, écrire des notes de version, rédiger la description ou prendre les captures d'écran de l'app, retirer une version, installer une stack avec drakbase-stack, ou comprendre un message de l'outil drakbase.
 ---
 
 # DrakBase : intégrer une app et publier ses versions
@@ -9,9 +9,10 @@ DrakBase est un serveur de mises à jour privé, pour des apps qui se mettent à
 
 - **le serveur** : `https://updates.drakbase.com`, avec l'administration sous `/admin` et une page publique par app. Cette adresse est inscrite dans les apps : elle ne change pas ;
 - **l'outil `drakbase`**, sur le Mac du développeur (macOS seulement) : il crée les clés, configure l'app, signe, publie et tient la fiche publique ;
-- **les clients** : le paquet Swift `DrakBase` (`import DrakBase`, apps macOS 14 et plus), ou le plugin officiel `tauri-plugin-updater` et l'aide `@drakbase/tauri` (apps Tauri 2 pour macOS, Linux et Windows).
+- **les clients** : le paquet Swift `DrakBase` (`import DrakBase`, apps macOS 14 et plus), ou le plugin officiel `tauri-plugin-updater` et l'aide `@drakbase/tauri` (apps Tauri 2 pour macOS, Linux et Windows) ;
+- **les stacks Docker** : un compose et ses images, que le serveur sert comme un registre en lecture seule ; sur la machine Linux, l'agent `drakbase-stack` les installe et les met à jour seul. L'agent est lui-même une **app cli**, un exécutable Linux publié par DrakBase (`references/stack.md`).
 
-L'outil et les clients viennent du dépôt privé `git@github.com:kcampion/drakbase-apps-market.git`, par SSH, et suivent ses étiquettes `vX.Y.Z`. Cette skill, elle, est publiée à part, dans le dépôt public `DrakBase/skill` : ne confonds pas les deux. Elle décrit la version **0.3.0** de l'outil : si `drakbase --version` donne autre chose, préfère ce que dit `drakbase <commande> --help`.
+L'outil et les clients viennent du dépôt privé `git@github.com:kcampion/drakbase-apps-market.git`, par SSH, et suivent ses étiquettes `vX.Y.Z`. Cette skill, elle, est publiée à part, dans le dépôt public `DrakBase/skill` : ne confonds pas les deux. Elle décrit la version **0.4.0** de l'outil : si `drakbase --version` donne autre chose, préfère ce que dit `drakbase <commande> --help`.
 
 Jusqu'à la 0.2, le paquet Swift s'appelait `AppsMarketKit`, l'aide Tauri `@appsmarket/tauri`, et les clés de l'Info.plist `AppsMarket…`. Les anciens noms marchent encore, mais `doctor` les signale : passe aux nouveaux quand tu touches à une app qui les utilise.
 
@@ -39,12 +40,12 @@ security find-identity -v -p codesigning   # certificats de signature de code (a
 ```
 
 - `drakbase` introuvable : voir « Installer l'outil ».
-- **Type de projet** : `src-tauri/tauri.conf.json` (ou `tauri.conf.json`) pour une app Tauri ; `Package.swift` ou un `.xcodeproj`, avec un `Info.plist`, pour une app Swift.
-- **Déjà branchée ?** `DrakBaseFeedURL` (ou l'ancienne `AppsMarketFeedURL`) dans l'Info.plist, ou `updates.drakbase.com` dans `tauri.conf.json`.
+- **Type de projet** : `src-tauri/tauri.conf.json` (ou `tauri.conf.json`) pour une app Tauri ; `Package.swift` ou un `.xcodeproj`, avec un `Info.plist`, pour une app Swift ; `stack/compose.yaml` pour une stack Docker ; `drakbase.json` pour une app cli.
+- **Déjà branchée ?** `DrakBaseFeedURL` (ou l'ancienne `AppsMarketFeedURL`) dans l'Info.plist, `updates.drakbase.com` dans `tauri.conf.json`, ou `public_keys` dans `stack/stack.json` ou `drakbase.json`.
 - **Déjà publiée ?** `drakbase listing <slug>` montre la fiche publique : sans description ni captures, c'est la première publication (parcours D).
-- `doctor` marque chaque contrôle : `✓` bon, `!` avertissement, `✗` problème. Le sens de chaque message et sa correction sont dans `references/depannage.md`.
+- `doctor` marque chaque contrôle : `✓` bon, `!` avertissement, `✗` problème. Le sens de chaque message et sa correction sont dans `references/depannage.md`. Pour une stack, donne toujours le slug : `drakbase doctor <slug>`.
 
-Puis suis le parcours qui correspond : A (brancher une app), B (publier une version), C (dépanner) ou D (la fiche publique).
+Puis suis le parcours qui correspond : A (brancher une app), B (publier une version), C (dépanner), D (la fiche publique) ou E (une stack Docker ou une app cli).
 
 ## Installer l'outil
 
@@ -52,7 +53,7 @@ Une fois par Mac. Il faut : Rust (`cargo`), une clé SSH qui a accès au dépôt
 
 ```bash
 git ls-remote --tags --refs ssh://git@github.com/kcampion/drakbase-apps-market.git 'v*'   # dernière étiquette
-CARGO_NET_GIT_FETCH_WITH_CLI=true cargo install --git ssh://git@github.com/kcampion/drakbase-apps-market.git --tag v0.3.0 am-cli --locked
+CARGO_NET_GIT_FETCH_WITH_CLI=true cargo install --git ssh://git@github.com/kcampion/drakbase-apps-market.git --tag v0.4.0 am-cli --locked
 ```
 
 Prends la plus haute étiquette. Le binaire va dans `~/.cargo/bin`. Cette installation ne demande aucun secret : tu peux la lancer, avec l'accord de l'utilisateur.
@@ -65,10 +66,10 @@ Prends la plus haute étiquette. Le binaire va dans `~/.cargo/bin`. Cette instal
    - dans son terminal : `drakbase login --server https://updates.drakbase.com`, qui demande le jeton et le range dans le trousseau. Avec le jeton dans le presse-papiers : `pbpaste | drakbase login --server https://updates.drakbase.com --token-stdin`.
 
    `drakbase doctor` montre ensuite la connexion et les droits du jeton.
-3. **`drakbase init <slug>`**, par l'utilisateur, dans son terminal, à la racine du projet (pour une app Tauri macOS, ajoute `--sign-id "<nom du certificat>"`). L'outil :
+3. **`drakbase init <slug>`**, par l'utilisateur, dans son terminal, à la racine du projet (pour une app Tauri macOS, ajoute `--sign-id "<nom du certificat>"` ; pour une stack Docker ou un exécutable Linux, voir le parcours E, `--stack` ou `--cli`). L'outil :
    - crée les clés de l'app si elle n'en a pas, les sauvegarde dans KeePassXC (il demande le mot de passe de la base, et le chemin de la base la première fois), relit la sauvegarde, puis range le mot de passe de la clé principale dans le trousseau ;
    - écrit la configuration des mises à jour (Info.plist, ou `tauri.conf.json`, permissions, `Cargo.toml` et `package.json`), sans toucher au code ni remplacer une clé déjà embarquée ; il renomme les clés `AppsMarket…` d'une app configurée avant la 0.3 ;
-   - ouvre l'administration sur une page pré-remplie qui crée l'app et active sa clé. **Cette page est réservée aux superadmins** : un éditeur envoie l'adresse affichée (`…/admin/add-app#…`) à un superadmin, qui vérifie que la page montre le même identifiant de clé que le terminal, puis valide. L'outil attend 15 minutes au plus ; relancer `drakbase init <slug>` reprend là où il en était ;
+   - ouvre l'administration sur une page pré-remplie qui crée l'app et active sa clé, et y ajoute comme éditeur le compte du jeton s'il n'est pas superadmin (sans quoi l'outil ne verrait pas l'app). **Cette page est réservée aux superadmins** : un éditeur envoie l'adresse affichée (`…/admin/add-app#…`) à un superadmin, qui vérifie que la page montre le même identifiant de clé que le terminal, puis valide. L'outil attend 15 minutes au plus ; relancer `drakbase init <slug>` reprend là où il en était ;
    - affiche « Reste à faire », puis les contrôles de `doctor` qui ne passent pas encore.
 
    Demande à l'utilisateur de te coller ce compte rendu, au moins « Reste à faire » et les lignes `✗` et `!`.
@@ -125,12 +126,26 @@ La page publique de l'app montre son icône, sa description, ses captures d'écr
    La même commande sans `--dry-run` remplace la description, et fait des captures du serveur exactement cette liste, dans cet ordre. Il faut le droit `listing:write` du jeton.
 5. **L'icône** et la visibilité de l'app sur la page publique se règlent dans l'administration, onglet « Informations » de l'app : propose un PNG carré de l'icône (512 Kio au plus), que l'utilisateur y dépose.
 
+## E. Une stack Docker ou une app cli
+
+Le détail est dans `references/stack.md`. Il faut Docker, avec buildx et Docker Compose, sur le Mac.
+
+**Stack Docker** (des conteneurs pour une machine Linux) :
+1. **Le dossier `stack/`**, par toi : `compose.yaml` (les services construits sur place avec `build:`), `.env.example` pour les réglages de la machine, `files/` pour les fichiers montés en lecture seule. Respecte les règles de `references/stack.md` : données dans des volumes nommés, montages du projet seulement depuis `files/`, en lecture seule, source variable en syntaxe longue.
+2. **`drakbase init <slug>`**, par l'utilisateur, comme au parcours A : clés, `stack/stack.json` créé ou complété (`public_keys`), page d'ajout de l'app (type `stack`). Vérifie ensuite `service`, `rollback`, `pre_update` et `platforms` dans `stack.json`.
+3. **`drakbase doctor <slug>`** jusqu'à ce qu'il ne reste aucun `✗` : il lit le compose avec Docker Compose et le contrôle comme à la publication.
+4. **Publier** : `drakbase release --app <slug> --stack --version <version> --channel stable --notes notes.md` construit les images, les recompresse, envoie un brouillon, et affiche la commande d'installation. `--publish` seulement avec l'accord de l'utilisateur.
+5. **Installer sur la machine** : l'utilisateur transmet la commande qu'affiche `release` (`curl … | sudo sh`, puis `sudo drakbase-stack install <slug> --key …`). Ne la modifie pas : la clé qu'elle contient est l'ancre de confiance de la machine.
+
+**App cli** (un exécutable Linux) : `drakbase init <slug> --cli` écrit `drakbase.json` ; l'exécutable lit ses `public_keys` à la compilation ; chaque version se signe avec `drakbase sign`, puis s'envoie avec `drakbase publish` depuis le dossier du projet.
+
 ## Pour aller plus loin
 
 - `references/swift.md` : le paquet DrakBase (dépendance, Info.plist, point d'entrée, interface, build et signature, script de publication).
 - `references/tauri.md` : configuration, plugins, aide `@drakbase/tauri`, instance unique, build, artefacts, Linux et Windows.
 - `references/publication.md` : options de `release` et `publish`, brouillons, canaux, retrait, clés, nouveau Mac.
 - `references/fiche.md` : description, captures d'écran (méthode, contrôle), `drakbase listing`.
+- `references/stack.md` : stacks Docker (dossier `stack/`, `compose.yaml`, `stack.json`, `release --stack`, installation sur la machine) et apps cli (`drakbase.json`, exécutables `bin`).
 - `references/depannage.md` : messages de `doctor` et de l'outil, et leur correction.
 - Les guides complets arrivent avec les clients, à la version installée :
   - Tauri : `node_modules/@drakbase/tauri/clients/tauri/README.md` ;
