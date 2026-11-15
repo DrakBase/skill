@@ -2,7 +2,7 @@
 
 ## Avant d'envoyer
 
-- `drakbase doctor <slug>` : aucun `✗`, et la ligne de version du projet plus haute que la dernière publiée.
+- `drakbase doctor <slug>` : aucun `✗`, et la version du projet plus haute que la dernière de son canal. `doctor` la juge comme `publish` : une pré-publication (`1.3.0-beta.1`) face à la dernière bêta, une autre version face à la dernière stable.
 - La version est canonique et plus haute que la dernière du canal : `1.2.0`, `1.2.1`, `1.3.0-beta.1`. `1.2` est publiée comme `1.2.0`, et les métadonnées `+…` sont refusées.
 - Les notes sont prêtes, en Markdown (voir plus bas).
 - Le jeton a les droits nécessaires : `releases:write` pour créer et remplir un brouillon, `releases:publish` en plus pour publier, et `listing:write` pour la fiche publique.
@@ -19,6 +19,9 @@ drakbase release <chemin>/Nom.app --app <slug> --channel stable|beta [--notes no
 - Le serveur est consulté avant d'empaqueter : un jeton refusé ou une version trop basse arrêtent tout avant le moindre travail.
 - Il refuse un bundle non signé ou signé ad hoc.
 - Options utiles : `--no-dmg` (pas de DMG), `-o <dossier>` (où écrire l'archive, sa signature et le DMG ; par défaut, à côté du bundle), `--prune` (retire du brouillon les fichiers envoyés avant qui ne font plus partie de l'envoi), `--force` (accepte une version inférieure ou égale à la dernière du canal : seulement à la demande expresse de l'utilisateur).
+- `--key <fichier>` signe avec une autre clé secrète que la clé principale de l'app : la clé de secours réinstallée, pour une version de transition (voir « Clés »). Sans cette option, la clé est celle de `TAURI_SIGNING_PRIVATE_KEY` si la variable est définie, sinon la clé principale de l'app.
+- `--tauri-config <chemin>` : pour le bundle macOS d'une app Tauri publié par `release`, la configuration où lire la clé embarquée, comme pour `publish`.
+- `drakbase pack-macos <chemin>/Nom.app [--dmg] [-o <dossier>] [--force]` fait la première étape seule : l'archive `Nom-<version>.app.tar.gz`, et le DMG avec `--dmg`. Elle se signe ensuite avec `drakbase sign`, puis s'envoie avec `drakbase publish`. `--force` remplace des fichiers déjà là.
 
 ## `drakbase publish` (app Tauri, ou artefacts déjà signés)
 
@@ -31,6 +34,8 @@ drakbase publish --app <slug> --version <version> --channel stable|beta [--notes
 - Il déclare les clés que la version embarque, lues dans `tauri.conf.json` (ou `DrakBasePublicKeys` dans l'Info.plist pour une app Swift) : lance-le depuis le dossier du projet, ou donne `--tauri-config`. Sans configuration trouvée, il refuse `--publish`.
 - Il envoie aussi les archives d'une stack (`.stack.tar.gz`, dont il lit les clés dans `stack.json`) et les exécutables d'une app cli (reconnus à leur en-tête ELF, ou `linux/<arch>/bin=<fichier>` ; leurs clés viennent de `drakbase.json`, ou de `--drakbase-json <chemin>`). Voir `stack.md`.
 - Mêmes options `--publish`, `--force` et `--prune` que `release`.
+- Un fichier construit à part se signe d'abord : `drakbase sign <fichier> --app <slug> --version <version>` écrit `<fichier>.sig`, avec la clé principale de l'app, ou celle de `--key <fichier>`.
+- `drakbase verify <fichier> --pubkey <clé publique ou fichier .key.pub> [--version <version>] [--signature <fichier .sig>]` contrôle une signature sans rien envoyer, contrôle par contrôle (format, clé, fichier, commentaire signé, version) ; il sort en erreur si elle est refusée.
 
 ## `drakbase release --stack` (stack Docker)
 
@@ -40,12 +45,13 @@ drakbase release --app <slug> --stack [<dossier>] --version <version> --channel 
 
 - Il construit les images de la stack, les envoie, et publie une archive signée par arch. La version se donne avec `--version` ; le dossier vaut `stack` par défaut. Le détail est dans `stack.md`.
 - `-o <dossier>` : où écrire les archives et leurs signatures (par défaut, `dist/` à côté du dossier de la stack).
-- Un brouillon se publie ensuite avec la commande `drakbase publish … --publish` qu'il affiche, sans rien reconstruire.
+- Un brouillon se publie ensuite avec la commande `drakbase publish … --publish` qu'il affiche, sans rien reconstruire. Elle n'a pas de `--notes` : le brouillon garde les notes données à `release`.
 
 ## Brouillons et reprise
 
 - Sans `--publish`, la version reste un **brouillon** : rien n'est proposé aux apps. On la regarde dans l'administration (page de la version : fichiers, liste de contrôle), puis on publie depuis l'administration ou en relançant la commande avec `--publish`.
 - Une commande interrompue se relance telle quelle : le brouillon est repris, et les fichiers identiques déjà envoyés ne repartent pas.
+- Un brouillon repris prend le canal de la commande. Ses notes ne changent que si `--notes` est donné : sans cette option, il garde les siennes ; avec elle, elles sont remplacées (un fichier vide les efface).
 - Un fichier ne se remplace que tant que la version est un brouillon. Une version publiée ne se modifie plus : on en publie une plus haute.
 
 ## Notes de version
@@ -69,9 +75,13 @@ Dans l'administration, page de la version : « Retirer ». Elle n'est plus propo
 
 - Chaque app a sa paire de clés : la clé principale signe, la clé de secours (embarquée par les apps Swift) sert si la principale est perdue. Les deux sont sauvegardées dans la base KeePassXC de l'utilisateur, groupe « Drakbase - Apps Market », entrées « <slug> - clé principale » et « <slug> - clé de secours ». La clé secrète de secours n'est que dans KeePassXC.
 - **Nouveau Mac** : `drakbase restore <slug>` (par l'utilisateur, dans son terminal : mot de passe de la base) réinstalle la clé principale et son mot de passe dans le trousseau.
+- **Clé principale perdue** : `drakbase restore <slug> --backup-key` réinstalle aussi la clé secrète de secours, qui signe alors par `--key ~/.appsmarket/keys/<slug>.backup.key` (`sign`, `release`). À retirer du Mac une fois la version de transition publiée : KeePassXC la garde.
+- **Créer les clés sans toucher au projet** : `drakbase keygen <slug>` (par l'utilisateur : mot de passe de la base) fait ce que fait `init` quand l'app n'a pas de clés, et rien d'autre. Il refuse si des clés existent déjà, sur le Mac ou dans KeePassXC.
 - **Clés créées avant la sauvegarde automatique** : `drakbase backup <slug>` les range dans KeePassXC, vérifie la sauvegarde et range le mot de passe de la clé principale dans le trousseau. Relancé, il vérifie seulement.
 - **Changer de clé** demande une version de transition : signée avec l'ancienne clé, elle embarque déjà la nouvelle ; la nouvelle devient ensuite active sur le serveur (onglet « Clés » de l'app). Les apps plus anciennes passent d'abord par cette version. C'est une opération rare, à préparer avec un superadmin : ne la lance pas de toi-même.
 - Si la clé principale et sa sauvegarde sont perdues pour une app Tauri, plus aucune mise à jour ne passe : chaque utilisateur doit réinstaller l'app depuis la page publique.
+- `--password-stdin` (`init`, `keygen`, `backup`, `restore`) lit le mot de passe de la base KeePassXC sur l'entrée standard plutôt qu'au terminal ; pour `backup`, les mots de passe des clés que le trousseau n'a pas suivent, un par ligne. C'est pour les scripts de l'utilisateur : ne t'en sers pas, tu n'as pas à connaître ces mots de passe.
+- `--home <dossier>` (toutes les commandes, sauf `verify` et `pack-macos`) emploie un autre dossier de l'outil que `~/.appsmarket` : ses clés, et sa connexion quand elle est rangée dans un fichier. La variable `APPSMARKET_HOME` fait de même. Ne t'en sers que si l'utilisateur range ses clés ailleurs.
 
 ## Page publique
 

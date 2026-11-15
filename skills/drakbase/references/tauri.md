@@ -13,6 +13,7 @@ L'app utilise le plugin officiel `tauri-plugin-updater`, qui interroge le serveu
 | `tauri-plugin-updater`, `@tauri-apps/plugin-updater` | `=2.14.0` / `2.14.0` | `requireSignedVersion` n'existe qu'à partir de 2.14 |
 | `tauri-plugin-process`, `@tauri-apps/plugin-process` | `=2.4.0` / `2.4.0` | `relaunch()` après l'installation |
 | `tauri-plugin-store`, `@tauri-apps/plugin-store` | `=2.5.0` / `2.5.0` | réglages de l'aide |
+| `tauri-plugin-os`, `@tauri-apps/plugin-os` | `=2.4.0` / `2.4.0` | version du système envoyée au serveur |
 | `tauri-plugin-single-instance` | `=2.5.4`, facultatif | compatible avec la relance |
 
 ## Ce que `drakbase init` écrit
@@ -40,10 +41,13 @@ L'app utilise le plugin officiel `tauri-plugin-updater`, qui interroge le serveu
   ```
 
   `signingIdentity` seulement avec `--sign-id`. Ne retire aucun de ces réglages : `{{bundle_type}}` fait servir le même type d'installation (une installation `deb` ne reçoit pas d'AppImage), `requireSignedVersion` refuse une archive dont la version signée diffère, `createUpdaterArtifacts: true` (jamais `"v1Compatible"`) produit les archives signées, `installMode: currentUser` évite l'UAC sous Windows.
+- **Fichiers de plateforme** (`tauri.macos.conf.json`, `tauri.windows.conf.json`, `tauri.linux.conf.json`) : `init` n'écrit que `tauri.conf.json`, et ne les modifie jamais. Il les lit fusionnés, comme `tauri build`, avant d'écrire quoi que ce soit ; illisibles, ils arrêtent tout.
+  - Si l'un d'eux masque un de ces réglages pour les builds de son système, `init` le signale d'une ligne `!`, qui nomme le fichier, le réglage et la valeur qu'il y prend. Corrige ce fichier, ou retires-en le réglage, puis relance `drakbase init <slug>`.
+  - Avec `--sign-id`, si `tauri.macos.conf.json` donne déjà un autre certificat (`bundle.macOS.signingIdentity`), le certificat demandé n'est pas écrit dans `tauri.conf.json`, où il resterait sans effet, et `init` le dit : change-le dans `tauri.macos.conf.json`.
 - `bundle.targets` : la même liste convient aux trois systèmes, par exemple `["app", "dmg", "nsis", "appimage"]`. Le DMG sert à la première installation, jamais aux mises à jour. Évite MSI : il s'installe pour toute la machine et demande l'UAC à chaque mise à jour.
 - **`src-tauri/capabilities/default.json`** : `updater:default`, `process:allow-restart` et `store:default`, pour la fenêtre qui gère les mises à jour. Si l'app a d'autres fichiers de capacités, la fenêtre concernée doit avoir ces trois permissions.
-- **`src-tauri/Cargo.toml`** : `tauri-plugin-updater`, `tauri-plugin-process` et `tauri-plugin-store`.
-- **`package.json`** : `@drakbase/tauri` (depuis le dépôt privé, `git+ssh://git@github.com/kcampion/drakbase-apps-market.git#semver:^0.4.0`) et les trois paquets `@tauri-apps/plugin-…`. Lance ensuite `npm install`. Jusqu'à la 0.2, l'aide s'appelait `@appsmarket/tauri` : une app qui l'utilise encore change le nom de la dépendance et de ses imports, puis lance `npm install`.
+- **`src-tauri/Cargo.toml`** : `tauri-plugin-updater`, `tauri-plugin-process`, `tauri-plugin-store` et `tauri-plugin-os`.
+- **`package.json`** : `@drakbase/tauri` (depuis le dépôt privé, `git+ssh://git@github.com/kcampion/drakbase-apps-market.git#semver:^0.5.1`) et les quatre paquets `@tauri-apps/plugin-…`. Lance ensuite `npm install`. Jusqu'à la 0.2, l'aide s'appelait `@appsmarket/tauri` : une app qui l'utilise encore change le nom de la dépendance et de ses imports, puis lance `npm install`.
 
 ## Ce qui reste à écrire
 
@@ -62,6 +66,7 @@ tauri::Builder::default()
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_process::init())
     .plugin(tauri_plugin_store::Builder::new().build())
+    .plugin(tauri_plugin_os::init())
 ```
 
 Si l'app empêche sa fermeture (`api.prevent_exit()` sur `RunEvent::ExitRequested`, pour rester dans la barre des menus par exemple), elle doit laisser passer la relance :
@@ -123,8 +128,10 @@ function Updates() {
 ```
 
 - Phases : `idle`, `checking`, `upToDate`, `available`, `downloading`, `installing`, `error`.
-- État : `currentVersion`, `settings` (`channel`, `shareStatistics`), `update` (`version`, `notes` en Markdown, `date`, `channel`), `progress` (`downloaded`, `total`), `error` (message en français), `lastCheck`.
-- Options de `useUpdater` : `checkOnMount` (vrai par défaut), `osVersion`, `timeout`, `beforeInstall`. `beforeInstall` est appelé une fois l'archive téléchargée et vérifiée, juste avant l'installation : c'est le moment d'enregistrer un travail en cours (sous Windows, l'installeur ferme l'app aussitôt).
+- État : `currentVersion`, `settings` (`channel`, `shareStatistics`), `update` (`version`, `notes` en Markdown, `date`, `channel`), `progress` (`downloaded`, `total`), `error` (message en français), `lastCheck` (la dernière recherche réussie : une recherche qui échoue ne la change pas).
+- Options de `useUpdater` : `checkOnMount` (vrai par défaut), `checkInterval`, `osVersion`, `timeout`, `beforeInstall`. `beforeInstall` est appelé une fois l'archive téléchargée et vérifiée, juste avant l'installation : c'est le moment d'enregistrer un travail en cours (sous Windows, l'installeur ferme l'app aussitôt).
+- Le crochet cherche de nouveau à intervalle, pour qu'une app laissée ouverte voie les nouvelles versions : `checkInterval`, en millisecondes, vaut un jour par défaut, ramené entre une heure et trente jours ; `0` ou `null` pour ne chercher qu'au montage et à la demande. L'intervalle court depuis la dernière recherche, demandée ou non. Une recherche automatique qui échoue garde la version déjà proposée.
+- `timeout`, en millisecondes, vaut 60 000 par défaut : passé ce délai, la recherche échoue (phase `error`) et peut être relancée. Il ne s'applique pas au téléchargement.
 - Changer de canal oublie la mise à jour affichée : cherche à nouveau ensuite.
 - Les statistiques sont activées par défaut : dis-le à côté de la case. Les couper efface l'identifiant d'installation.
 - Rends les notes avec le composant Markdown de l'app s'il en a un ; `<pre>` suffit sinon.
@@ -132,18 +139,38 @@ function Updates() {
 ### Sans React
 
 ```ts
-import { checkForUpdate, installUpdate } from "@drakbase/tauri";
+import {
+  checkForUpdate,
+  describeUpdateError,
+  installUpdate,
+  isWithdrawnUpdateError,
+  updateChannel,
+} from "@drakbase/tauri";
 
-const update = await checkForUpdate();
+let update = await checkForUpdate();
 if (update) {
-  await installUpdate(update, {
-    onProgress: ({ downloaded, total }) => console.log(downloaded, total),
-    beforeInstall: () => saveDraft(),
-  });
+  console.log(update.version, updateChannel(update)); // « stable » ou « beta »
+  try {
+    await installUpdate(update, {
+      onProgress: ({ downloaded, total }) => console.log(downloaded, total),
+      beforeInstall: () => saveDraft(),
+    });
+  } catch (error) {
+    showError(describeUpdateError(error)); // message en français
+    if (isWithdrawnUpdateError(error)) {
+      // Version retirée par l'éditeur (410) : elle ne reviendra pas, on cherche à nouveau.
+      await update.close();
+      update = await checkForUpdate();
+    }
+  }
 }
 ```
 
-`installUpdate` télécharge, fait vérifier la signature, installe, puis appelle `relaunch()` : sur macOS et Linux, le plugin ne relance pas l'app lui-même. Ne remplace pas l'aide par un appel direct à `check()` du plugin : il faudrait refaire les en-têtes du canal et des statistiques.
+- `installUpdate` télécharge, fait vérifier la signature, installe, puis appelle `relaunch()` : sur macOS et Linux, le plugin ne relance pas l'app lui-même. Ne remplace pas l'aide par un appel direct à `check()` du plugin : il faudrait refaire les en-têtes du canal et des statistiques.
+- `updateChannel(update)` rend le canal de la version proposée, `stable` ou `beta`.
+- `describeUpdateError(error)` rend un message en français pour une erreur du plugin, dont les messages sont en anglais ; le texte d'origine reste à la fin, entre parenthèses. Montre ce message, pas l'erreur brute.
+- `isWithdrawnUpdateError(error)` est vrai quand le téléchargement a reçu `410` : l'éditeur a retiré la version entre la recherche et le téléchargement. Réessayer ne sert à rien : libère la mise à jour (`update.close()`), puis cherche à nouveau. Le crochet, lui, libère et oublie la version tout seul ; il reste à relancer `check()`.
+- Sans le crochet, c'est à l'app de chercher de nouveau de temps en temps ; `checkForUpdate` a le même délai de 60 000 ms par défaut (option `timeout`).
 
 L'aide est livrée en TypeScript, compilé par l'app : elle suppose `"moduleResolution": "bundler"`, ce que font Vite et les modèles de Tauri.
 
@@ -183,7 +210,7 @@ drakbase publish --app <slug> --version 1.2.0 --channel stable --notes notes.md 
 
 ## Plateformes
 
-- **macOS** : il faut pouvoir écrire dans le dossier de l'app. Une app lancée depuis le DMG ou Téléchargements tourne depuis une copie en lecture seule : demande de la glisser dans Applications. Pour que le serveur écarte les versions trop récentes pour le Mac, passe `osVersion` à l'aide (par exemple `version()` du plugin os) ; `bundle.macOS.minimumSystemVersion` fixe le minimum d'une version.
+- **macOS** : il faut pouvoir écrire dans le dossier de l'app. Une app lancée depuis le DMG ou Téléchargements tourne depuis une copie en lecture seule : demande de la glisser dans Applications. L'aide envoie la version du système au serveur, qui écarte les versions trop récentes pour le Mac : elle la lit par `tauri-plugin-os`, que `drakbase init` ajoute et qui ne demande aucune permission. Si `.plugin(tauri_plugin_os::init())` manque, la recherche part sans cette version, et un Mac resté sur un ancien macOS reçoit et installe une version qu'il ne peut pas lancer : `drakbase doctor` le signale. `bundle.macOS.minimumSystemVersion` fixe le minimum d'une version. L'option `osVersion` de `useUpdater` et de `checkForUpdate` impose une autre version.
 - **Linux** : seule l'AppImage se met à jour en place, et seulement dans un dossier de l'utilisateur. Compte environ 90 Mo par version et par arch. `deb` et `rpm` sont servis aux installations de ce type, avec un mot de passe à chaque mise à jour.
 - **Windows** : l'installeur NSIS en `currentUser` s'installe sans UAC ; à la mise à jour, il ferme l'app, s'installe en mode passif et la relance. SmartScreen avertit à la première installation d'un installeur non signé. Ce parcours n'a pas encore été essayé sur un vrai PC : propose de le vérifier.
 

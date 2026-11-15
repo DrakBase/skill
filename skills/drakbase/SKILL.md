@@ -12,7 +12,7 @@ DrakBase est un serveur de mises à jour privé, pour des apps qui se mettent à
 - **les clients** : le paquet Swift `DrakBase` (`import DrakBase`, apps macOS 14 et plus), ou le plugin officiel `tauri-plugin-updater` et l'aide `@drakbase/tauri` (apps Tauri 2 pour macOS, Linux et Windows) ;
 - **les stacks Docker** : un compose et ses images, que le serveur sert comme un registre en lecture seule ; sur la machine Linux, l'agent `drakbase-stack` les installe et les met à jour seul. L'agent est lui-même une **app cli**, un exécutable Linux publié par DrakBase (`references/stack.md`).
 
-L'outil et les clients viennent du dépôt privé `git@github.com:kcampion/drakbase-apps-market.git`, par SSH, et suivent ses étiquettes `vX.Y.Z`. Cette skill, elle, est publiée à part, dans le dépôt public `DrakBase/skill` : ne confonds pas les deux. Elle décrit la version **0.4.0** de l'outil : si `drakbase --version` donne autre chose, préfère ce que dit `drakbase <commande> --help`.
+L'outil et les clients viennent du dépôt privé `git@github.com:kcampion/drakbase-apps-market.git`, par SSH, et suivent ses étiquettes `vX.Y.Z`. Cette skill, elle, est publiée à part, dans le dépôt public `DrakBase/skill` : ne confonds pas les deux. Elle décrit la version **0.5.1** de l'outil : si `drakbase --version` donne autre chose, préfère ce que dit `drakbase <commande> --help`.
 
 Jusqu'à la 0.2, le paquet Swift s'appelait `AppsMarketKit`, l'aide Tauri `@appsmarket/tauri`, et les clés de l'Info.plist `AppsMarket…`. Les anciens noms marchent encore, mais `doctor` les signale : passe aux nouveaux quand tu touches à une app qui les utilise.
 
@@ -53,7 +53,7 @@ Une fois par Mac. Il faut : Rust (`cargo`), une clé SSH qui a accès au dépôt
 
 ```bash
 git ls-remote --tags --refs ssh://git@github.com/kcampion/drakbase-apps-market.git 'v*'   # dernière étiquette
-CARGO_NET_GIT_FETCH_WITH_CLI=true cargo install --git ssh://git@github.com/kcampion/drakbase-apps-market.git --tag v0.4.0 am-cli --locked
+CARGO_NET_GIT_FETCH_WITH_CLI=true cargo install --git ssh://git@github.com/kcampion/drakbase-apps-market.git --tag v0.5.1 am-cli --locked
 ```
 
 Prends la plus haute étiquette. Le binaire va dans `~/.cargo/bin`. Cette installation ne demande aucun secret : tu peux la lancer, avec l'accord de l'utilisateur.
@@ -143,7 +143,7 @@ Le détail est dans `references/stack.md`. Il faut Docker, avec buildx et Docker
 
 - `references/swift.md` : le paquet DrakBase (dépendance, Info.plist, point d'entrée, interface, build et signature, script de publication).
 - `references/tauri.md` : configuration, plugins, aide `@drakbase/tauri`, instance unique, build, artefacts, Linux et Windows.
-- `references/publication.md` : options de `release` et `publish`, brouillons, canaux, retrait, clés, nouveau Mac.
+- `references/publication.md` : options de `release` et `publish`, brouillons, canaux, retrait, clés, nouveau Mac, et les commandes moins courantes (`pack-macos`, `sign`, `verify`, `keygen`).
 - `references/fiche.md` : description, captures d'écran (méthode, contrôle), `drakbase listing`.
 - `references/stack.md` : stacks Docker (dossier `stack/`, `compose.yaml`, `stack.json`, `release --stack`, installation sur la machine) et apps cli (`drakbase.json`, exécutables `bin`).
 - `references/depannage.md` : messages de `doctor` et de l'outil, et leur correction.

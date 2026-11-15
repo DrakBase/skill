@@ -96,7 +96,7 @@ L'outil enchaîne :
 5. le brouillon, les couches qui manquent au serveur, les manifestes, puis les archives ;
 6. avec `--publish`, la publication ; puis la **commande d'installation** à transmettre à l'utilisateur de la machine, clé publique comprise.
 
-- Un brouillon se publie ensuite sans rien reconstruire : la commande `drakbase publish … --publish dist/…stack.tar.gz` qu'affiche `release`, ou l'administration.
+- Un brouillon se publie ensuite sans rien reconstruire : la commande `drakbase publish … --publish dist/…stack.tar.gz` qu'affiche `release`, ou l'administration. Cette commande n'a pas de `--notes` : le brouillon garde les notes données à `release`.
 - Une commande interrompue se relance telle quelle : ce qui est déjà sur le serveur ne repart pas.
 - Mêmes options `--force` et `--prune` que pour les autres apps ; `--publish` seulement avec l'accord de l'utilisateur.
 

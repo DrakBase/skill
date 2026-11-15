@@ -11,7 +11,7 @@
 | aucun Info.plist trouvé dans le projet | Ajouter un Info.plist (réglage « Info.plist File » pour un projet Xcode), ou `--plist`. **Toi**, puis `drakbase init` relancé par l'utilisateur. |
 | identifiant de bundle absent, ou différent de celui du serveur | Le `CFBundleIdentifier` (ou `identifier` de Tauri) doit être celui de l'app sur le serveur. Ne change pas celui d'une app déjà distribuée : vérifie plutôt le slug. |
 | dépendance DrakBase absente, introuvable dans le code : … | `references/swift.md`. **Toi.** |
-| dépendance AppsMarketKit : le paquet s'appelle désormais DrakBase | Produit `DrakBase` (`from: "0.4.0"`) et `import DrakBase` à la place d'`AppsMarketCore` et `AppsMarketUI` (`swift.md`). **Toi.** |
+| dépendance AppsMarketKit : le paquet s'appelle désormais DrakBase | Produit `DrakBase` (`from: "0.5.1"`) et `import DrakBase` à la place d'`AppsMarketCore` et `AppsMarketUI` (`swift.md`). **Toi.** |
 | `AppsMarketFeedURL` (ou une autre `AppsMarket…`) : ancien nom de `DrakBase…` | `drakbase init <slug>` les renomme, valeurs inchangées. **L'utilisateur**, ou toi en éditant l'Info.plist si le slug et les valeurs restent identiques. |
 | `… n'est pas enregistré dans src-tauri/src`, l'interface n'utilise pas encore `@drakbase/tauri` | `references/tauri.md`, « Ce qui reste à écrire ». **Toi.** |
 | `@appsmarket/tauri` dans `package.json`, ou l'interface l'importe encore | L'aide s'appelle désormais `@drakbase/tauri` : renommer la dépendance et les imports, puis `npm install`. **Toi.** |
@@ -20,22 +20,28 @@
 | `requireSignedVersion` ou `createUpdaterArtifacts` pas activé, installation Windows à revoir | `drakbase init <slug>` les règle ; ou à la main, comme dans `references/tauri.md`. |
 | DrakBasePublicKeys n'a pas de clé de secours | Ajouter la clé publique de secours (`~/.appsmarket/keys/<slug>.backup.key.pub`) après la principale, sans toucher à la principale. |
 | clé embarquée différente de la clé principale | Les mises à jour seraient refusées. Ne remplace rien : c'est une rotation de clé (`publication.md`). Préviens l'utilisateur. |
-| la version du projet n'est pas plus haute que la dernière publiée | Monter la version avant de publier. **Toi**, avec l'accord de l'utilisateur sur le numéro. |
+| la version du projet n'est pas plus haute que la dernière version stable (ou bêta) publiée | `doctor` compare comme `publish` : une pré-publication (`1.3.0-beta.1`) à la dernière bêta, une autre version à la dernière stable. Monter la version avant de publier. **Toi**, avec l'accord de l'utilisateur sur le numéro. |
+| la version du projet est déjà publiée en bêta (ou en stable) | En bêta : pour la passer en stable, changer son canal dans l'administration, sans rien renvoyer. Sinon, monter la version. |
+| la version du projet est une pré-publication plus basse que la dernière version stable | Elle se publierait, mais personne ne la recevrait : les apps réglées sur bêta voient aussi les versions stables. Prendre une pré-publication de la version suivante. |
+| `… pour Windows (src-tauri/tauri.windows.conf.json)`, ou pour macOS ou Linux | Le fichier de plateforme nommé change ce réglage pour ses builds : `doctor` lit, OS par OS, ce que lira `tauri build`. Corriger ce fichier, ou en retirer le réglage ; `drakbase init` ne modifie que `tauri.conf.json`. **Toi**, sauf pour une clé : c'est une rotation (`publication.md`). |
+| `init` : `… change « … » pour les builds …`, `… donne déjà bundle.macOS.signingIdentity` | Même cause, dite par `init` : un fichier de plateforme l'emporte sur ce qu'`init` écrit. `--sign-id` n'écrit pas dans `tauri.conf.json` un certificat que `tauri.macos.conf.json` remplacerait : le changer dans ce fichier. **Toi.** |
 | un script du projet lit `$VAR…` de travers | Le bash 3.2 de macOS colle le caractère accentué au nom : écrire `${VAR}…`. **Toi.** |
 
 ## Connexion et jeton
 
 | Message | Correction |
 |---|---|
-| aucune connexion enregistrée | **L'utilisateur** : créer un jeton (« Mon compte » › « Jetons d'API »), puis `drakbase login --server https://updates.drakbase.com` dans son terminal. |
+| aucune connexion enregistrée | **L'utilisateur** : créer un jeton (« Mon compte » › « Jetons d'API »), puis `drakbase login --server https://updates.drakbase.com` dans son terminal. `drakbase init <slug> --server https://updates.drakbase.com` écrit la configuration sans connexion ; l'app reste alors à déclarer, en relançant `init` une fois connecté. |
+| l'outil est connecté au mauvais serveur, ou avec le jeton d'un autre compte | **L'utilisateur** : `drakbase logout` retire du trousseau l'adresse et le jeton, puis `drakbase login`. Le jeton reste valable sur le serveur : le révoquer dans l'administration s'il ne doit plus servir. |
 | le jeton ne peut pas envoyer de version (`releases:write` absente) | **L'utilisateur** : nouveau jeton avec cette portée, puis `drakbase login`. |
 | le jeton ne peut pas publier (`releases:publish` absente) | Les versions resteront en brouillon : publier depuis l'administration, ou nouveau jeton. |
 | le jeton ne peut pas modifier la fiche (`listing:write` absente) | **L'utilisateur** : nouveau jeton avec ce droit, puis `drakbase login` ; ou la description et les captures déposées dans l'administration. |
-| le jeton ne sert qu'à l'app … / ne donne pas accès à l'app … | **L'utilisateur** : jeton pour cette app, ou pour toutes ses apps, puis `drakbase login`. |
+| le jeton « … » ne sert qu'à l'app …, pas à … / ne donne pas accès à l'app … | Le jeton est limité à une autre app : il ne verrait même pas celle-ci. Le message est le même pour `publish`, `release`, `listing`, `init` et `doctor`. **L'utilisateur** : jeton pour cette app, ou pour toutes ses apps, puis `drakbase login`. |
 | le jeton est refusé : il a expiré ou a été révoqué | **L'utilisateur** : nouveau jeton, puis `drakbase login`. |
 | le jeton n'a pas les droits nécessaires | Sa portée, son app, ou le rôle de son propriétaire : un éditeur ne publie que pour les apps dont il est éditeur. Un superadmin l'ajoute dans l'onglet « Éditeurs » de l'app. |
 | `http://` n'est permis que pour un serveur sur ce Mac | Utiliser `https://updates.drakbase.com`. |
 | trop de requêtes | Attendre quelques minutes. |
+| réponse du serveur illisible : il y manque le champ « … » | Le serveur est plus ancien que l'outil : il ne rend pas ce que cette version attend. À voir avec l'administrateur du serveur, qui le met à jour. Rien n'a été envoyé de travers : l'outil s'arrête plutôt que de deviner. |
 
 ## App et clé sur le serveur
 
@@ -43,7 +49,6 @@
 |---|---|
 | l'app … n'existe pas sur le serveur, la clé principale n'est pas déclarée | **L'utilisateur** relance `drakbase init <slug>` ; la page `/admin/add-app#…` qu'il ouvre est réservée aux superadmins. Un éditeur en transmet l'adresse à un superadmin. |
 | `init` reste sur « En attente de l'administration… » alors que la page dit l'app prête | Le compte du jeton n'est pas éditeur de l'app : il ne la voit pas. **L'utilisateur** l'ajoute dans l'onglet Éditeurs de l'app. Un outil 0.4 ou plus le fait proposer par la page, dans le même clic. |
-| le jeton de l'outil est limité à l'app … : il ne verra pas … | **L'utilisateur** crée un jeton pour toutes ses apps, puis relance `drakbase login`. |
 | l'app a déjà une autre clé active sur le serveur | Le projet embarque une autre clé que celle du serveur : mauvais slug, ou clés d'un autre Mac (`drakbase restore <slug>`). Sinon, rotation de clé : à voir avec un superadmin. |
 | l'app est de type swift sur le serveur, et le projet est une app tauri (ou l'inverse) | Mauvais slug : vérifie l'identifiant de l'app. |
 | clé déclarée comme suivante, pas encore active | Normal pendant une rotation : la passer active dans l'onglet « Clés » une fois la version de transition publiée. |
@@ -68,8 +73,8 @@
 | Message | Correction |
 |---|---|
 | `… est signé ad hoc`, `… n'est pas signé` | Signer le bundle avec le certificat : `codesign --force --sign "<nom du certificat>" --timestamp=none Nom.app`. |
-| `bundle.macOS.signingIdentity` vaut « - » ou absent, certificat absent du trousseau | `drakbase init <slug> --sign-id "<nom du certificat>"`, ou corriger `tauri.conf.json`. Le nom exact vient de `security find-identity -v -p codesigning`. |
-| la version … est déjà publiée en stable / déjà retirée, la version existe déjà hors brouillon | Choisir une version plus haute. |
+| `bundle.macOS.signingIdentity` vaut « - » ou absent, certificat absent du trousseau | `drakbase init <slug> --sign-id "<nom du certificat>"`, ou corriger `tauri.conf.json`. Si le message nomme `tauri.macos.conf.json`, c'est là que le certificat se corrige. Le nom exact vient de `security find-identity -v -p codesigning`. |
+| la version … est déjà publiée en stable, la version existe déjà sur le serveur, hors brouillon (`conflict`) | Elle est publiée ou retirée : choisir une version plus haute. |
 | la version … est déjà publiée en bêta | Pour la passer en stable : changer son canal dans l'administration, sans rien renvoyer. |
 | `… est signé pour la version X, pas Y`, la signature ne contient pas de version | Le fichier a été construit pour une autre version : reconstruire après avoir monté la version, ou `drakbase sign <fichier> --app <slug> --version <version>` pour un fichier signé à part. |
 | signature au format historique | Signer de nouveau (`drakbase exec <slug> -- npx tauri build`, ou `drakbase sign`). |
@@ -107,11 +112,13 @@ Les règles sont dans `references/stack.md`. Chaque règle enfreinte se termine 
 | `build.… n'est pas pris en charge` | Retirer ce champ (`secrets`, `ssh`…) du `build:`, ou construire l'image autrement. |
 | le montage `${…}:/…` prend une variable pour source | L'écrire en syntaxe longue avec `type: bind` (`stack.md`). **Toi.** |
 | `(bind_outside_files)`, `(bind_not_read_only)` | Un fichier du dossier de la stack se monte depuis `files/`, en lecture seule (`:ro`) ; les données vont dans un volume nommé. **Toi.** |
+| `(bind_path_invalid)` | Un chemin monté (la source d'un montage, le `file` d'un `config` ou d'un `secret`) contient un composant `.` ou `..`, refusé partout : `files/../../etc` commencerait dans la stack et en sortirait. Écrire le chemin sans eux. **Toi.** |
 | `(service_missing)`, `(pre_update_missing)`, `(profile_unexpected)`, `(pre_update_profile)` | `service` et `pre_update` de `stack.json` désignent des services du compose ; seul `pre_update` a un profil, exactement `drakbase-hooks`. **Toi.** |
 | `(image_not_pinned)` | Une image d'un autre registre s'épingle par empreinte : `redis:7@sha256:…` (`docker buildx imagetools inspect redis:7` la donne). **Toi.** |
 | container_name est déconseillé | Retirer `container_name` : un nom fixe peut entrer en conflit avec un conteneur existant de la machine. |
 | buildx n'a pas produit la plateforme … | Le constructeur ne sait pas construire pour cette plateforme (émulation absente) : la retirer de `platforms`, ou installer l'émulation. |
 | l'app … est une app Swift sur le serveur, pas une stack Docker | Mauvais slug, ou app créée avec un autre type : vérifie l'identifiant. |
+| le serveur annonce une adresse publique que l'outil ne peut pas employer | L'adresse publique du serveur (`AM_PUBLIC_URL`) entre dans les noms d'images et dans la commande d'installation : elle doit être une adresse `https://hôte` (ou `http://hôte`), sans chemin ni identifiant. À voir avec l'administrateur du serveur. |
 | `requête refusée : seule une app de type stack reçoit des images` | L'app du serveur n'est pas de type `stack`. |
 | `n'est pas un exécutable Linux (ELF)`, `l'exécutable est fait pour …` | Un artefact `bin` est un exécutable Linux de l'arch annoncée : vérifier la cible de compilation. |
 | `… est une app cli, et le dossier courant n'a pas de drakbase.json` | Lancer `publish` depuis le dossier du projet, ou donner `--drakbase-json <chemin>`. |
