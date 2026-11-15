@@ -23,7 +23,10 @@ Rien d'autre du dossier n'est publié : ni `.env`, ni les sources. Le nom du fic
 - Chaque image à publier vient d'un service avec `build:`. Elle prend le nom de son `image:`, sans registre ni étiquette (`image: home-manager:dev` donne l'image `home-manager`), ou à défaut le nom du service. Ce nom : minuscules et chiffres, séparés par un seul `.`, `_` ou `-`.
 - Un service qui emploie la même image sans la construire (une sauvegarde, par exemple) porte la même `image:` que le service construit.
 - Les autres images (Docker Hub…) sont permises, épinglées par empreinte : `redis:7@sha256:…`.
-- À la publication, l'outil retire les `build:` et le `name:` de haut niveau, et remplace chaque image construite par `updates.drakbase.com/<slug>/<image>@sha256:…`. Les `${VAR}` et les chemins relatifs restent tels quels.
+- À la publication, l'outil retire les `build:` et le `name:` de haut niveau, et remplace chaque image construite par `updates.drakbase.com/<slug>/<image>@sha256:…`. Les `${VAR}` et les chemins relatifs restent tels quels. L'archive porte ce compose publié : un document JSON exact, sans commentaire. C'est lui que l'agent lit, jamais un `compose.yaml` écrit à la main.
+- **Deux contrôles**, par l'outil avant l'envoi (`doctor`, `release --stack`, et `publish` d'une archive) puis par l'agent sur la machine, avec les mêmes règles :
+  1. le compose de l'archive, tel qu'il est écrit ;
+  2. sa forme résolue par Docker Compose, contre une liste de champs admis.
 - **Règles**, contrôlées par `doctor` et avant toute construction par `release` :
   - le service surveillé (`service` de `stack.json`) existe et n'a pas de profil ; aucun autre service n'a de profil, sauf `pre_update`, qui a exactement `profiles: [drakbase-hooks]` ;
   - un fichier du dossier de la stack ne se monte que depuis `files/`, en lecture seule (`./files/app.toml:/etc/app.toml:ro`) ;
@@ -39,7 +42,33 @@ Rien d'autre du dossier n'est publié : ni `.env`, ni les sources. Le nom du fic
 
     En syntaxe courte (`${DATA_DIR}:/data`), Docker Compose ne sait pas, avant de lire la variable, s'il s'agit d'un dossier ou d'un volume ;
   - `container_name` est déconseillé (avertissement) : le projet Compose porte le slug de l'app, et ses conteneurs en tirent leur nom.
+- **Champs et valeurs admis.** Seuls les champs d'une liste sont acceptés ; tout autre est refusé, connu de Compose ou non, avec son chemin (`services.app.provider`). La liste complète est dans la section « Compose » de PROTOCOLE.md, dans le dépôt de DrakBase. L'essentiel :
+  - les champs ordinaires d'un service passent : `command`, `environment`, `healthcheck`, `depends_on`, `networks`, `ports`, `volumes`, `restart`, limites de mémoire et de processeur, `labels`, `logging`… Un champ `x-…` passe partout ;
+  - `labels` reste admis, sans permission : des outils de la machine les lisent, un proxy branché sur Docker par exemple ;
+  - sont refusés, entre autres : `use_api_socket`, `provider`, `annotations`, `external_links`, `cgroup_parent`, `credential_spec`, `isolation`, et la section `models` ;
+  - un réseau n'a pas d'autre pilote que `bridge`, un volume pas d'autre que `local` ; un montage est de type `bind`, `volume` ou `tmpfs`, et ses objets `bind`, `volume` et `tmpfs` ont leur propre liste de champs ;
+  - la `propagation` d'un montage `bind` n'est ni `shared` ni `rshared` : ce que le conteneur monte remonterait vers la machine ;
+  - un montage `read_only` avec `bind.recursive: writable` n'est pas en lecture seule : refusé dans `files/`, montré comme un dossier en écriture ailleurs ;
+  - `logging.driver` vaut `json-file`, `local` ou `none` : avec un autre (`syslog`, `fluentd`…), c'est Docker qui se connecterait, depuis la machine, à l'adresse donnée par la stack. Sans `driver`, seules les options `max-size`, `max-file` et `compress` passent, car le pilote par défaut de la machine les reçoit ;
+  - l'`ipam` d'un réseau n'a pas de `config` (des adresses choisies par la stack), ni d'autre pilote que `default` ;
+  - un volume avec `driver_opts` n'a que `type`, `o` et `device` : `type` vaut `none`, `device` est un chemin absolu, et `o` une liste prise parmi `bind`, `rbind`, `ro`, `rw`, `nosuid`, `nodev` et `noexec`, avec `bind` ou `rbind`. C'est une permission (voir plus bas). `nfs` et `cifs` sont refusés (`o: bind` en ferait un dossier de la machine) : un partage se monte sur la machine, et la stack le reçoit comme un dossier de l'hôte, réglé par `.env` ;
+  - aucun nom de service, de volume, de réseau, de `config` ou de `secret`, ni aucune valeur qui devient une permission (port, chemin, capacité…), ne contient de caractère de contrôle, de sens d'écriture ou invisible (`compose_text_hidden`) : il pourrait effacer ou cacher une ligne de la liste à accepter. Les accents passent ;
+  - `network_mode`, `pid` et `ipc` acceptent `service:<service>` ; avec `host` ou `container:<nom>`, ce sont des permissions (voir plus bas). `uts` et `userns_mode` n'acceptent que `host`, `cgroup` que `private` ou `host` ;
+  - un `env_file` ou un `label_file` est un chemin relatif dans `files/` (`./files/app.env`), écrit en toutes lettres : ni `$`, ni `..` ;
+  - ni `include` ni `extends` ne restent dans le compose publié.
 - `build:` : `context`, `dockerfile`, `dockerfile_inline`, `args`, `target`, `labels`, `additional_contexts`, `network`, `no_cache`, `pull`, `extra_hosts`, `cache_from`, `cache_to`, `shm_size`. `tags` et `platforms` sont ignorés (les plateformes sont celles de `stack.json`) ; le reste (`secrets`, `ssh`…) est refusé.
+
+### Permissions
+
+Ce que la stack demande à la machine, au-delà de ses propres conteneurs, est une **permission** : `doctor` et `release` les affichent, et l'agent les fait accepter à l'installation. Une permission nouvelle arrête une mise à jour, jusqu'à ce que l'utilisateur de la machine l'accepte.
+
+- Ports publiés, réseau de l'hôte ou d'un autre conteneur, dossiers de l'hôte, mode privilégié, capacités ajoutées, protections modifiées (`security_opt`), périphériques (un GPU en est un), volumes et réseaux existants (`external: true`).
+- Espace `pid` ou `ipc` de l'hôte ou d'un autre conteneur, volumes d'un autre conteneur (`volumes_from: container:…`), moteur d'exécution (`runtime`).
+- **Socket Docker** (« contrôle total de Docker, donc de la machine ») : par un montage, mais aussi par le `file` d'un `config` ou d'un `secret`, ou par un volume `none` dont le `device` est `docker.sock`.
+- **Volume avec `driver_opts`** : « dossier de l'hôte /mnt/nas (volume …) », avec « en lecture seule » si `o` a `ro`, sans `rw` ni `rbind` (`rbind` laisse ses sous-montages en écriture). Le type et les options font partie de la permission : les changer en demande une nouvelle.
+- **Volume ou réseau à nom fixe** : un volume ou un réseau sans `external`, dont le `name:` n'est pas celui que Compose lui donne seul (`<slug>_<clé>`), est une permission, car une autre stack peut partager celui du même nom.
+  - Laisse Compose nommer les volumes et les réseaux, sauf besoin précis.
+  - Si une stack déjà publiée en a un, sa version suivante s'arrête sur chaque machine où elle est installée, jusqu'à `sudo drakbase-stack update <slug> --accept` : préviens l'utilisateur avant de publier. Il en va de même d'une stack qui a un volume avec `driver_opts` : la machine qui l'avait accepté devra l'accepter de nouveau.
 
 ### `stack.json`
 
@@ -50,7 +79,7 @@ Rien d'autre du dossier n'est publié : ni `.env`, ni les sources. Le nom du fic
   "health_timeout": 120,
   "rollback": "manual",
   "pre_update": "backup",
-  "min_compose_version": "2.24",
+  "min_compose_version": "2.29",
   "platforms": ["linux/arm64", "linux/amd64"],
   "public_keys": ["<clé principale>", "<clé de secours>"]
 }
@@ -111,6 +140,14 @@ sudo drakbase-stack auto on
 ```
 
 Le premier installe l'agent, le deuxième la stack (il montre ses permissions et les fait accepter), le troisième active la vérification quotidienne. Rien ne s'installe sans validation : dans l'interface de l'app si elle le propose (`app_control`), sinon par `sudo drakbase-stack update <slug>`. Docker Engine 24 et Docker Compose 2.29 au moins sont nécessaires sur la machine. Ensuite, `sudo drakbase-stack status`, `logs <slug>`, `update`, `rollback <slug>`, et `restart <slug>` après un réglage changé dans `/var/lib/drakbase-stack/<slug>/.env`.
+
+- **Toujours en root** : le dossier de chaque stack n'est ouvert qu'à root. Sans `sudo`, une commande de l'agent s'arrête sur « lecture de …/state.json : accès refusé ».
+- **Permission nouvelle** : la mise à jour s'arrête (code de sortie 3), et l'agent donne la commande qui l'accepte, `sudo drakbase-stack update <slug> --accept`.
+- **Relance d'une version gardée** (`rollback`, `restart`, et le retour seul après un échec avec `rollback: safe`) : l'agent refait d'abord le contrôle du compose, avec le `.env` du moment.
+  - Une permission nouvelle arrête de la même façon, jusqu'à `sudo drakbase-stack rollback <slug> --accept` ou `restart <slug> --accept`. Le retour seul n'accepte jamais rien : il laisse la version en échec, et donne la commande `rollback … --accept`.
+  - Une version déjà installée dont le compose emploie un champ maintenant refusé ne se relance plus, `restart` compris : il faut publier une version corrigée, que `update` installera.
+- **`.env`** : une mise à jour arrêtée après l'avoir complété le remet comme avant, et dit quels réglages elle retire.
+- **Mises à jour validées dans l'app** : seule une stack dont la version qui tourne a `app_control` a un dossier de contrôle, et l'unité systemd qui surveille ses demandes. Sans lui, `drakbase-stack request <slug>` répond que la stack « ne reçoit pas de demande de son interface », et renvoie à `sudo drakbase-stack update <slug>`.
 
 ## App cli
 

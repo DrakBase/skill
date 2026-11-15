@@ -12,7 +12,7 @@ DrakBase est un serveur de mises à jour privé, pour des apps qui se mettent à
 - **les clients** : le paquet Swift `DrakBase` (`import DrakBase`, apps macOS 14 et plus), ou le plugin officiel `tauri-plugin-updater` et l'aide `@drakbase/tauri` (apps Tauri 2 pour macOS, Linux et Windows) ;
 - **les stacks Docker** : un compose et ses images, que le serveur sert comme un registre en lecture seule ; sur la machine Linux, l'agent `drakbase-stack` les installe et les met à jour seul. L'agent est lui-même une **app cli**, un exécutable Linux publié par DrakBase (`references/stack.md`).
 
-L'outil et les clients viennent du dépôt privé `git@github.com:kcampion/drakbase-apps-market.git`, par SSH, et suivent ses étiquettes `vX.Y.Z`. Cette skill, elle, est publiée à part, dans le dépôt public `DrakBase/skill` : ne confonds pas les deux. Elle décrit la version **0.5.1** de l'outil : si `drakbase --version` donne autre chose, préfère ce que dit `drakbase <commande> --help`.
+L'outil et les clients viennent du dépôt privé `git@github.com:kcampion/drakbase-apps-market.git`, par SSH, et suivent ses étiquettes `vX.Y.Z`. Cette skill, elle, est publiée à part, dans le dépôt public `DrakBase/skill` : ne confonds pas les deux. Elle décrit la version **0.5.2** de l'outil : si `drakbase --version` donne autre chose, préfère ce que dit `drakbase <commande> --help`.
 
 Jusqu'à la 0.2, le paquet Swift s'appelait `AppsMarketKit`, l'aide Tauri `@appsmarket/tauri`, et les clés de l'Info.plist `AppsMarket…`. Les anciens noms marchent encore, mais `doctor` les signale : passe aux nouveaux quand tu touches à une app qui les utilise.
 
@@ -53,7 +53,7 @@ Une fois par Mac. Il faut : Rust (`cargo`), une clé SSH qui a accès au dépôt
 
 ```bash
 git ls-remote --tags --refs ssh://git@github.com/kcampion/drakbase-apps-market.git 'v*'   # dernière étiquette
-CARGO_NET_GIT_FETCH_WITH_CLI=true cargo install --git ssh://git@github.com/kcampion/drakbase-apps-market.git --tag v0.5.1 am-cli --locked
+CARGO_NET_GIT_FETCH_WITH_CLI=true cargo install --git ssh://git@github.com/kcampion/drakbase-apps-market.git --tag v0.5.2 am-cli --locked
 ```
 
 Prends la plus haute étiquette. Le binaire va dans `~/.cargo/bin`. Cette installation ne demande aucun secret : tu peux la lancer, avec l'accord de l'utilisateur.
@@ -68,7 +68,7 @@ Prends la plus haute étiquette. Le binaire va dans `~/.cargo/bin`. Cette instal
    `drakbase doctor` montre ensuite la connexion et les droits du jeton.
 3. **`drakbase init <slug>`**, par l'utilisateur, dans son terminal, à la racine du projet (pour une app Tauri macOS, ajoute `--sign-id "<nom du certificat>"` ; pour une stack Docker ou un exécutable Linux, voir le parcours E, `--stack` ou `--cli`). L'outil :
    - crée les clés de l'app si elle n'en a pas, les sauvegarde dans KeePassXC (il demande le mot de passe de la base, et le chemin de la base la première fois), relit la sauvegarde, puis range le mot de passe de la clé principale dans le trousseau ;
-   - écrit la configuration des mises à jour (Info.plist, ou `tauri.conf.json`, permissions, `Cargo.toml` et `package.json`), sans toucher au code ni remplacer une clé déjà embarquée ; il renomme les clés `AppsMarket…` d'une app configurée avant la 0.3 ;
+   - écrit la configuration des mises à jour (Info.plist, ou `tauri.conf.json`, permissions, `Cargo.toml` et `package.json`), sans toucher au code ni remplacer une clé déjà embarquée ; il renomme les clés `AppsMarket…` d'une app configurée avant la 0.3, et monte la plage de `@drakbase/tauri` d'une app Tauri restée sur une aide plus ancienne ;
    - ouvre l'administration sur une page pré-remplie qui crée l'app et active sa clé, et y ajoute comme éditeur le compte du jeton s'il n'est pas superadmin (sans quoi l'outil ne verrait pas l'app). **Cette page est réservée aux superadmins** : un éditeur envoie l'adresse affichée (`…/admin/add-app#…`) à un superadmin, qui vérifie que la page montre le même identifiant de clé que le terminal, puis valide. L'outil attend 15 minutes au plus ; relancer `drakbase init <slug>` reprend là où il en était ;
    - affiche « Reste à faire », puis les contrôles de `doctor` qui ne passent pas encore.
 

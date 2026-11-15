@@ -47,7 +47,11 @@ L'app utilise le plugin officiel `tauri-plugin-updater`, qui interroge le serveu
 - `bundle.targets` : la même liste convient aux trois systèmes, par exemple `["app", "dmg", "nsis", "appimage"]`. Le DMG sert à la première installation, jamais aux mises à jour. Évite MSI : il s'installe pour toute la machine et demande l'UAC à chaque mise à jour.
 - **`src-tauri/capabilities/default.json`** : `updater:default`, `process:allow-restart` et `store:default`, pour la fenêtre qui gère les mises à jour. Si l'app a d'autres fichiers de capacités, la fenêtre concernée doit avoir ces trois permissions.
 - **`src-tauri/Cargo.toml`** : `tauri-plugin-updater`, `tauri-plugin-process`, `tauri-plugin-store` et `tauri-plugin-os`.
-- **`package.json`** : `@drakbase/tauri` (depuis le dépôt privé, `git+ssh://git@github.com/kcampion/drakbase-apps-market.git#semver:^0.5.1`) et les quatre paquets `@tauri-apps/plugin-…`. Lance ensuite `npm install`. Jusqu'à la 0.2, l'aide s'appelait `@appsmarket/tauri` : une app qui l'utilise encore change le nom de la dépendance et de ses imports, puis lance `npm install`.
+- **`package.json`** : `@drakbase/tauri` (depuis le dépôt privé, `git+ssh://git@github.com/kcampion/drakbase-apps-market.git#semver:^0.5.2`) et les quatre paquets `@tauri-apps/plugin-…`. Lance ensuite `npm install`. Jusqu'à la 0.2, l'aide s'appelait `@appsmarket/tauri` : une app qui l'utilise encore change le nom de la dépendance et de ses imports, puis lance `npm install`.
+  - **Une app déjà branchée sur une aide plus ancienne** : en 0.x, `^` ne franchit pas la version mineure (`#semver:^0.4.0` ne reçoit jamais la 0.5), et `npm update` n'y change rien. `drakbase init <slug>` monte la plage à la version de l'outil (« ✓ package.json : @drakbase/tauri monté de ^0.4.0 à ^0.5.2 ») et ajoute les plugins qui manquent ; lance ensuite `npm install`, puis enregistre côté Rust les plugins ajoutés. `drakbase doctor` le signale d'une ligne `!` : « @drakbase/tauri plus ancien que l'outil : la plage ^0.4.0 de package.json s'arrête avant la version 0.5.2 ». `init` ne touche qu'à une plage qui s'arrête avant la version de l'outil :
+    - une plage qui n'admet que des versions plus récentes (`>0.6.0`, `0.6.0 - 0.7.0`…) n'est jamais ramenée en arrière : c'est l'outil qu'il faut mettre à jour, et `doctor` le dit ;
+    - une plage qu'il ne sait pas lire reste telle quelle, et `package.json` n'est pas modifié : `doctor` la signale (« plage « … » illisible dans package.json »). Vérifie alors qu'elle admet la version de l'outil, ou écris `^0.5.2` à sa place, puis `npm install` ;
+    - une aide déclarée autrement (`file:`, `workspace:`, une étiquette git) n'est ni comparée ni modifiée.
 
 ## Ce qui reste à écrire
 
@@ -92,7 +96,7 @@ function Updates() {
 
   return (
     <section>
-      {phase === "available" && update ? (
+      {update && (phase === "available" || phase === "error") ? (
         <>
           <p>La version {update.version} est disponible.</p>
           <pre>{update.notes}</pre>
@@ -129,10 +133,11 @@ function Updates() {
 
 - Phases : `idle`, `checking`, `upToDate`, `available`, `downloading`, `installing`, `error`.
 - État : `currentVersion`, `settings` (`channel`, `shareStatistics`), `update` (`version`, `notes` en Markdown, `date`, `channel`), `progress` (`downloaded`, `total`), `error` (message en français), `lastCheck` (la dernière recherche réussie : une recherche qui échoue ne la change pas).
-- Options de `useUpdater` : `checkOnMount` (vrai par défaut), `checkInterval`, `osVersion`, `timeout`, `beforeInstall`. `beforeInstall` est appelé une fois l'archive téléchargée et vérifiée, juste avant l'installation : c'est le moment d'enregistrer un travail en cours (sous Windows, l'installeur ferme l'app aussitôt).
-- Le crochet cherche de nouveau à intervalle, pour qu'une app laissée ouverte voie les nouvelles versions : `checkInterval`, en millisecondes, vaut un jour par défaut, ramené entre une heure et trente jours ; `0` ou `null` pour ne chercher qu'au montage et à la demande. L'intervalle court depuis la dernière recherche, demandée ou non. Une recherche automatique qui échoue garde la version déjà proposée.
-- `timeout`, en millisecondes, vaut 60 000 par défaut : passé ce délai, la recherche échoue (phase `error`) et peut être relancée. Il ne s'applique pas au téléchargement.
-- Changer de canal oublie la mise à jour affichée : cherche à nouveau ensuite.
+- Options de `useUpdater` : `checkOnMount` (vrai par défaut), `checkInterval`, `osVersion`, `timeout`, `downloadTimeout`, `beforeInstall`. `beforeInstall` est appelé une fois l'archive téléchargée et vérifiée, juste avant l'installation : c'est le moment d'enregistrer un travail en cours (sous Windows, l'installeur ferme l'app aussitôt).
+- Le crochet cherche de nouveau à intervalle, pour qu'une app laissée ouverte voie les nouvelles versions : `checkInterval`, en millisecondes, vaut un jour par défaut, ramené entre une heure et trente jours ; `0` ou `null` pour ne chercher qu'au montage et à la demande. L'intervalle court depuis la dernière recherche, demandée ou non.
+- Une recherche qui échoue ne fait pas oublier une version déjà proposée. Automatique, elle se tait (la phase revient à `available`). Demandée, elle passe à la phase `error`, et `update` garde la version : c'est pourquoi l'exemple propose l'installation dès que `update` existe, dans les phases `available` et `error`.
+- Délais, en millisecondes : `timeout` pour la recherche (60 000 par défaut), `downloadTimeout` pour le téléchargement (4 heures par défaut). Passé son délai, l'opération échoue (phase `error`) et peut être relancée.
+- Changer de canal oublie la mise à jour affichée : cherche à nouveau ensuite. Pendant une recherche, `setChannel` suffit : elle se refait seule avec le nouveau canal.
 - Les statistiques sont activées par défaut : dis-le à côté de la case. Les couper efface l'identifiant d'installation.
 - Rends les notes avec le composant Markdown de l'app s'il en a un ; `<pre>` suffit sinon.
 
@@ -170,7 +175,8 @@ if (update) {
 - `updateChannel(update)` rend le canal de la version proposée, `stable` ou `beta`.
 - `describeUpdateError(error)` rend un message en français pour une erreur du plugin, dont les messages sont en anglais ; le texte d'origine reste à la fin, entre parenthèses. Montre ce message, pas l'erreur brute.
 - `isWithdrawnUpdateError(error)` est vrai quand le téléchargement a reçu `410` : l'éditeur a retiré la version entre la recherche et le téléchargement. Réessayer ne sert à rien : libère la mise à jour (`update.close()`), puis cherche à nouveau. Le crochet, lui, libère et oublie la version tout seul ; il reste à relancer `check()`.
-- Sans le crochet, c'est à l'app de chercher de nouveau de temps en temps ; `checkForUpdate` a le même délai de 60 000 ms par défaut (option `timeout`).
+- Sans le crochet, c'est à l'app de chercher de nouveau de temps en temps ; `checkForUpdate` a le même délai de 60 000 ms par défaut (option `timeout`), et `installUpdate` les mêmes 4 heures pour télécharger (option `downloadTimeout`).
+- `checkForUpdate` rend `null` (« à jour ») pour une bêta reçue sur le canal stable, et pour une version qui exige un système plus récent que celui de la machine. Elle lève une erreur si la réponse n'annonce pas un canal `stable` ou `beta`.
 
 L'aide est livrée en TypeScript, compilé par l'app : elle suppose `"moduleResolution": "bundler"`, ce que font Vite et les modèles de Tauri.
 
@@ -210,7 +216,7 @@ drakbase publish --app <slug> --version 1.2.0 --channel stable --notes notes.md 
 
 ## Plateformes
 
-- **macOS** : il faut pouvoir écrire dans le dossier de l'app. Une app lancée depuis le DMG ou Téléchargements tourne depuis une copie en lecture seule : demande de la glisser dans Applications. L'aide envoie la version du système au serveur, qui écarte les versions trop récentes pour le Mac : elle la lit par `tauri-plugin-os`, que `drakbase init` ajoute et qui ne demande aucune permission. Si `.plugin(tauri_plugin_os::init())` manque, la recherche part sans cette version, et un Mac resté sur un ancien macOS reçoit et installe une version qu'il ne peut pas lancer : `drakbase doctor` le signale. `bundle.macOS.minimumSystemVersion` fixe le minimum d'une version. L'option `osVersion` de `useUpdater` et de `checkForUpdate` impose une autre version.
+- **macOS** : il faut pouvoir écrire dans le dossier de l'app. Une app lancée depuis le DMG ou Téléchargements tourne depuis une copie en lecture seule : demande de la glisser dans Applications. L'aide envoie la version du système au serveur, qui écarte les versions trop récentes pour le Mac, et les écarte elle-même s'il ne l'a pas fait : elle la lit par `tauri-plugin-os`, que `drakbase init` ajoute et qui ne demande aucune permission. Il faut pour cela trois choses, que `drakbase doctor` contrôle chacune : l'aide 0.5.1 ou plus (une aide plus ancienne n'envoie rien, même avec le plugin ; `doctor` compare la plage de `package.json` à la version de l'outil), le plugin dans `Cargo.toml`, et `.plugin(tauri_plugin_os::init())` dans le code Rust. S'il en manque une, la recherche part sans cette version, et un Mac resté sur un ancien macOS reçoit et installe une version qu'il ne peut pas lancer. `bundle.macOS.minimumSystemVersion` fixe le minimum d'une version. L'option `osVersion` de `useUpdater` et de `checkForUpdate` impose une autre version.
 - **Linux** : seule l'AppImage se met à jour en place, et seulement dans un dossier de l'utilisateur. Compte environ 90 Mo par version et par arch. `deb` et `rpm` sont servis aux installations de ce type, avec un mot de passe à chaque mise à jour.
 - **Windows** : l'installeur NSIS en `currentUser` s'installe sans UAC ; à la mise à jour, il ferme l'app, s'installe en mode passif et la relance. SmartScreen avertit à la première installation d'un installeur non signé. Ce parcours n'a pas encore été essayé sur un vrai PC : propose de le vérifier.
 

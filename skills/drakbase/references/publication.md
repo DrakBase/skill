@@ -51,6 +51,8 @@ drakbase release --app <slug> --stack [<dossier>] --version <version> --channel 
 
 - Sans `--publish`, la version reste un **brouillon** : rien n'est proposé aux apps. On la regarde dans l'administration (page de la version : fichiers, liste de contrôle), puis on publie depuis l'administration ou en relançant la commande avec `--publish`.
 - Une commande interrompue se relance telle quelle : le brouillon est repris, et les fichiers identiques déjà envoyés ne repartent pas.
+  - Identique veut dire le même contenu et la même signature (la clé qui signe et la version signée) : l'outil écrit alors « déjà sur le serveur, identique, pas renvoyé ».
+  - Le même fichier signé autrement, par une autre clé par exemple, est renvoyé : « envoyé (7,3 Mio), à la place de celui du brouillon ».
 - Un brouillon repris prend le canal de la commande. Ses notes ne changent que si `--notes` est donné : sans cette option, il garde les siennes ; avec elle, elles sont remplacées (un fichier vide les efface).
 - Un fichier ne se remplace que tant que la version est un brouillon. Une version publiée ne se modifie plus : on en publie une plus haute.
 
